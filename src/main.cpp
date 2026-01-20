@@ -25,7 +25,7 @@ float tempHistory[historySize];
 float humidHistory[historySize];
 int historyIndex = 0;
 
-// Timers
+// Timers   
 unsigned long lastSensorRead = 0;
 unsigned long lastWiFiCheck = 0;
 unsigned long bootTime = 0;
