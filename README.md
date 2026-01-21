@@ -94,7 +94,7 @@ pio run --target upload
 
 Подробнее в [API.md](docs/API.md)
 
-## 📸 Скриншоты
+## 📸 Скриншоты (TBD)
 
 ![Web Interface](docs/images/screenshot.png)
 
