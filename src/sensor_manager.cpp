@@ -1,17 +1,34 @@
 #include "sensor_manager.h"
+#include "config.h"
 #include <Wire.h>
 
 SensorManager::SensorManager() 
     : _temperature(0.0), _humidity(0.0),
       _minTemp(TEMP_INIT_MIN), _maxTemp(TEMP_INIT_MAX),
       _minHumid(HUMID_INIT_MIN), _maxHumid(HUMID_INIT_MAX),
-      _historyIndex(0) {
+      _historyIndex(0), _hourlyHistoryIndex(0), _hourlyHistoryCount(0) {
     
-    // Инициализация истории
+    // Инициализация истории для графика
     for(int i = 0; i < HISTORY_SIZE; i++) {
         _tempHistory[i] = 0;
         _humidHistory[i] = 0;
     }
+    
+    // Выделение динамической памяти для часовой истории
+    _hourlyTempHistory = new float[HOURLY_HISTORY_SIZE];
+    _hourlyHumidHistory = new float[HOURLY_HISTORY_SIZE];
+    
+    // Инициализация часовой истории
+    for(int i = 0; i < HOURLY_HISTORY_SIZE; i++) {
+        _hourlyTempHistory[i] = 0;
+        _hourlyHumidHistory[i] = 0;
+    }
+}
+
+SensorManager::~SensorManager() {
+    // Освобождаем выделенную память
+    delete[] _hourlyTempHistory;
+    delete[] _hourlyHumidHistory;
 }
 
 bool SensorManager::begin() {
@@ -51,9 +68,20 @@ void SensorManager::update() {
 }
 
 void SensorManager::updateHistory() {
+    // Обновление истории для графика (3 минуты)
     _tempHistory[_historyIndex] = _temperature;
     _humidHistory[_historyIndex] = _humidity;
     _historyIndex = (_historyIndex + 1) % HISTORY_SIZE;
+    
+    // Обновление часовой истории
+    _hourlyTempHistory[_hourlyHistoryIndex] = _temperature;
+    _hourlyHumidHistory[_hourlyHistoryIndex] = _humidity;
+    _hourlyHistoryIndex = (_hourlyHistoryIndex + 1) % HOURLY_HISTORY_SIZE;
+    
+    // Увеличиваем счётчик до максимума
+    if (_hourlyHistoryCount < HOURLY_HISTORY_SIZE) {
+        _hourlyHistoryCount++;
+    }
 }
 
 void SensorManager::resetMinMax() {
@@ -86,6 +114,26 @@ float SensorManager::getMinHumid() {
 
 float SensorManager::getMaxHumid() {
     return _maxHumid;
+}
+
+float SensorManager::getAvgTemp() {
+    if (_hourlyHistoryCount == 0) return _temperature;
+    
+    float sum = 0;
+    for(int i = 0; i < _hourlyHistoryCount; i++) {
+        sum += _hourlyTempHistory[i];
+    }
+    return sum / _hourlyHistoryCount;
+}
+
+float SensorManager::getAvgHumid() {
+    if (_hourlyHistoryCount == 0) return _humidity;
+    
+    float sum = 0;
+    for(int i = 0; i < _hourlyHistoryCount; i++) {
+        sum += _hourlyHumidHistory[i];
+    }
+    return sum / _hourlyHistoryCount;
 }
 
 void SensorManager::getHistory(float* tempHist, float* humidHist, int size) {

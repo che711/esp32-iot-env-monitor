@@ -4,6 +4,9 @@
 #include "sensor_manager.h"
 #include "web_server.h"
 
+// Глобальная переменная для CPU usage
+float g_cpuUsage = 0.0;
+
 // Глобальные объекты
 WiFiManager wifiManager(WIFI_SSID, WIFI_PASSWORD);
 SensorManager sensorManager;
@@ -79,6 +82,7 @@ void loop() {
         unsigned long totalTime = busyTime + idleTime;
         if (totalTime > 0) {
             cpuUsage = (float)busyTime / totalTime * 100.0;
+            g_cpuUsage = cpuUsage;  // ← Добавьте эту строку
         }
         // Сброс счётчиков
         busyTime = 0;

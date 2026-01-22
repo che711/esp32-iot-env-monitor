@@ -95,12 +95,31 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
             opacity: 0.8;
         }
         
-        .minmax {
-            display: flex;
-            justify-content: space-around;
+        .sensor-description {
             margin-top: 15px;
             font-size: 12px;
             opacity: 0.9;
+            text-align: center;
+            line-height: 1.4;
+            min-height: 40px;
+        }
+        
+        .minmax {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin-top: 15px;
+            font-size: 11px;
+            opacity: 0.9;
+        }
+        
+        .minmax .avg-value {
+            font-size: 22px;
+            font-weight: bold;
+            opacity: 1;
+            padding: 5px 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
         }
         
         .info-grid {
@@ -161,7 +180,11 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
             display: flex;
             gap: 10px;
             margin-top: 15px;
-            flex-wrap: wrap;
+            flex-direction: column;
+        }
+        
+        .buttons .btn {
+            width: 100%;
         }
         
         .btn {
@@ -286,6 +309,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                 </div>
                 <div class="minmax">
                     <div>⬇️ Min: <span id="minTemp">--</span><span id="minTempUnit">°C</span></div>
+                    <div class="avg-value">📊 <span id="avgTemp">--</span><span id="avgTempUnit">°C</span></div>
                     <div>⬆️ Max: <span id="maxTemp">--</span><span id="maxTempUnit">°C</span></div>
                 </div>
                 <div class="temp-unit-toggle">
@@ -306,21 +330,39 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                 </div>
                 <div class="minmax">
                     <div>⬇️ Min: <span id="minHumid">--</span>%</div>
+                    <div class="avg-value">📊 <span id="avgHumid">--</span>%</div>
                     <div>⬆️ Max: <span id="maxHumid">--</span>%</div>
                 </div>
             </div>
             
+            <div class="card sensor-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="sensor-label">💧 Точка росы</div>
+                <div class="sensor-value">
+                    <span id="dewPoint">--</span>
+                    <span class="sensor-unit" id="dewPointUnit">°C</span>
+                </div>
+                <div class="sensor-description" style="margin-top: 15px; font-size: 12px; opacity: 0.9; text-align: center; line-height: 1.4;">
+                    Температура, при которой водяной пар конденсируется в росу
+                </div>
+            </div>
+            
+            <div class="card sensor-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                <div class="sensor-label">🌡️ Теплоощущение</div>
+                <div class="sensor-value">
+                    <span id="heatIndex">--</span>
+                    <span class="sensor-unit" id="heatIndexUnit">°C</span>
+                </div>
+                <div class="sensor-description" style="margin-top: 15px; font-size: 12px; opacity: 0.9; text-align: center; line-height: 1.4;">
+                    Ощущаемая температура с учётом влажности воздуха
+                </div>
+            </div>
+            
             <div class="card">
-                <h3 style="margin-bottom: 15px; color: #333;">📊 Расчётные данные</h3>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Точка росы</div>
-                        <div class="info-value"><span id="dewPoint">--</span> <span id="dewPointUnit">°C</span></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Теплоощущение</div>
-                        <div class="info-value"><span id="heatIndex">--</span> <span id="heatIndexUnit">°C</span></div>
-                    </div>
+                <h3 style="margin-bottom: 15px; color: #333;">⚙️ Управление</h3>
+                <div class="buttons" style="margin-top: 0;">
+                    <button class="btn btn-primary" onclick="exportCSV()" style="flex: 1;">📥 Экспорт CSV</button>
+                    <button class="btn btn-success" onclick="resetMinMax()" style="flex: 1;">🔄 Сброс Min/Max</button>
+                    <button class="btn btn-danger" onclick="rebootDevice()" style="flex: 1;">⚡ Перезагрузка</button>
                 </div>
             </div>
             
@@ -363,11 +405,6 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                     </div>
                 </div>
                 
-                <div class="buttons">
-                    <button class="btn btn-primary" onclick="exportCSV()">📥 Экспорт CSV</button>
-                    <button class="btn btn-success" onclick="resetMinMax()">🔄 Сброс Min/Max</button>
-                    <button class="btn btn-danger" onclick="rebootDevice()">⚡ Перезагрузка</button>
-                </div>
             </div>
             
             <div class="card chart-card">
@@ -452,7 +489,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
         }
         
         function updateDisplay() {
-            const units = document.querySelectorAll('#tempUnit, #minTempUnit, #maxTempUnit, #dewPointUnit, #heatIndexUnit');
+            const units = document.querySelectorAll('#tempUnit, #minTempUnit, #maxTempUnit, #avgTempUnit, #dewPointUnit, #heatIndexUnit');
             units.forEach(el => el.textContent = isFahrenheit ? '°F' : '°C');
             updateData();
         }
@@ -468,6 +505,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                     const temp = isFahrenheit ? celsiusToFahrenheit(data.temperature) : data.temperature;
                     const minT = isFahrenheit ? celsiusToFahrenheit(data.minTemp) : data.minTemp;
                     const maxT = isFahrenheit ? celsiusToFahrenheit(data.maxTemp) : data.maxTemp;
+                    const avgT = isFahrenheit ? celsiusToFahrenheit(data.avgTemp) : data.avgTemp;
                     const dewP = isFahrenheit ? celsiusToFahrenheit(data.dewPoint) : data.dewPoint;
                     const heatI = isFahrenheit ? celsiusToFahrenheit(data.heatIndex) : data.heatIndex;
                     
@@ -475,8 +513,10 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                     document.getElementById('humidity').textContent = data.humidity.toFixed(1);
                     document.getElementById('minTemp').textContent = minT.toFixed(1);
                     document.getElementById('maxTemp').textContent = maxT.toFixed(1);
+                    document.getElementById('avgTemp').textContent = avgT.toFixed(1);
                     document.getElementById('minHumid').textContent = data.minHumid.toFixed(1);
                     document.getElementById('maxHumid').textContent = data.maxHumid.toFixed(1);
+                    document.getElementById('avgHumid').textContent = data.avgHumid.toFixed(1);
                     document.getElementById('dewPoint').textContent = dewP.toFixed(1);
                     document.getElementById('heatIndex').textContent = heatI.toFixed(1);
                     
