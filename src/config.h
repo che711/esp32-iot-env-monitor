@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 // WiFi Configuration
-inline const char* WIFI_SSID = "network";
+inline const char* WIFI_SSID = "SkyNet";
 inline const char* WIFI_PASSWORD = "password";
 
 // I2C Configuration

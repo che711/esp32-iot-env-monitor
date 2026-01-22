@@ -1,47 +1,57 @@
 #include "wifi_manager.h"
 
-WiFiManager::WiFiManager(const char* ssid, const char* password) 
-    : _ssid(ssid), _password(password), _reconnectCount(0), _lastCheck(0) {
-}
+WiFiManager::WiFiManager(const char* ssid, const char* password)
+    : _ssid(ssid),
+      _password(password),
+      _reconnectCount(0),
+      _lastCheck(0) {}
 
 void WiFiManager::begin() {
-    Serial.println("\n=== Подключение к WiFi ===");
     connect();
 }
 
 void WiFiManager::connect() {
-    WiFi.disconnect(true);
-    delay(1000);
-    
+    Serial.printf("Connecting to SSID: [%s]\n", _ssid);
+
     WiFi.mode(WIFI_STA);
     WiFi.setSleep(false);
     WiFi.setAutoReconnect(true);
-    WiFi.persistent(true);
+    WiFi.persistent(false);
+
+    WiFi.disconnect(false);
+    delay(200);
+
+    int n = WiFi.scanNetworks();
+    Serial.printf("Found %d networks\n", n);
+    for (int i = 0; i < n; i++) {
+        Serial.printf("%2d: %s (%d dBm)\n",
+                      i,
+                      WiFi.SSID(i).c_str(),
+                      WiFi.RSSI(i));
+    }
+
     WiFi.begin(_ssid, _password);
-    
-    Serial.print("Подключение");
+
     int attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 40) {
+    while (WiFi.status() != WL_CONNECTED && attempts < 30) {
         delay(500);
         Serial.print(".");
         attempts++;
     }
-    
+
     if (WiFi.status() == WL_CONNECTED) {
-        Serial.println("\n✓ WiFi подключен!");
-        Serial.print("IP: ");
+        Serial.println("\n✓ WiFi connected");
         Serial.println(WiFi.localIP());
-        Serial.print("RSSI: ");
-        Serial.print(WiFi.RSSI());
-        Serial.println(" dBm");
     } else {
-        Serial.println("\n✗ Ошибка подключения к WiFi");
+        Serial.println("\n✗ WiFi connect failed");
     }
 }
 
 void WiFiManager::checkConnection() {
+    if (millis() - _lastCheck < 5000) return;
+    _lastCheck = millis();
+
     if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("WiFi потерян! Переподключение...");
         _reconnectCount++;
         connect();
     }

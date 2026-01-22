@@ -98,9 +98,19 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
         .minmax {
             display: flex;
             justify-content: space-around;
+            align-items: center;
             margin-top: 15px;
             font-size: 11px;
             opacity: 0.9;
+        }
+        
+        .minmax .avg-value {
+            font-size: 22px;
+            font-weight: bold;
+            opacity: 1;
+            padding: 5px 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
         }
         
         .info-grid {
@@ -286,7 +296,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                 </div>
                 <div class="minmax">
                     <div>⬇️ Min: <span id="minTemp">--</span><span id="minTempUnit">°C</span></div>
-                    <div>📊 Avg: <span id="avgTemp">--</span><span id="avgTempUnit">°C</span></div>
+                    <div class="avg-value">📊 <span id="avgTemp">--</span><span id="avgTempUnit">°C</span></div>
                     <div>⬆️ Max: <span id="maxTemp">--</span><span id="maxTempUnit">°C</span></div>
                 </div>
                 <div class="temp-unit-toggle">
@@ -307,7 +317,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                 </div>
                 <div class="minmax">
                     <div>⬇️ Min: <span id="minHumid">--</span>%</div>
-                    <div>📊 Avg: <span id="avgHumid">--</span>%</div>
+                    <div class="avg-value">📊 <span id="avgHumid">--</span>%</div>
                     <div>⬆️ Max: <span id="maxHumid">--</span>%</div>
                 </div>
             </div>
@@ -323,6 +333,28 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                         <div class="info-label">Теплоощущение</div>
                         <div class="info-value"><span id="heatIndex">--</span> <span id="heatIndexUnit">°C</span></div>
                     </div>
+                </div>
+            </div>
+            
+            <div class="card sensor-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="sensor-label">💧 Точка росы</div>
+                <div class="sensor-value">
+                    <span id="dewPoint2">--</span>
+                    <span class="sensor-unit" id="dewPointUnit2">°C</span>
+                </div>
+                <div class="sensor-description" style="margin-top: 10px; font-size: 11px; opacity: 0.85; text-align: center;">
+                    Температура конденсации влаги
+                </div>
+            </div>
+            
+            <div class="card sensor-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                <div class="sensor-label">🌡️ Теплоощущение</div>
+                <div class="sensor-value">
+                    <span id="heatIndex2">--</span>
+                    <span class="sensor-unit" id="heatIndexUnit2">°C</span>
+                </div>
+                <div class="sensor-description" style="margin-top: 10px; font-size: 11px; opacity: 0.85; text-align: center;">
+                    Ощущаемая температура с учётом влажности
                 </div>
             </div>
             
@@ -454,7 +486,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
         }
         
         function updateDisplay() {
-            const units = document.querySelectorAll('#tempUnit, #minTempUnit, #maxTempUnit, #avgTempUnit, #dewPointUnit, #heatIndexUnit');
+            const units = document.querySelectorAll('#tempUnit, #minTempUnit, #maxTempUnit, #avgTempUnit, #dewPointUnit, #dewPointUnit2, #heatIndexUnit, #heatIndexUnit2');
             units.forEach(el => el.textContent = isFahrenheit ? '°F' : '°C');
             updateData();
         }
@@ -483,7 +515,9 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                     document.getElementById('maxHumid').textContent = data.maxHumid.toFixed(1);
                     document.getElementById('avgHumid').textContent = data.avgHumid.toFixed(1);
                     document.getElementById('dewPoint').textContent = dewP.toFixed(1);
+                    document.getElementById('dewPoint2').textContent = dewP.toFixed(1);
                     document.getElementById('heatIndex').textContent = heatI.toFixed(1);
+                    document.getElementById('heatIndex2').textContent = heatI.toFixed(1);
                     
                     const now = new Date();
                     document.getElementById('updateTime').textContent = now.toLocaleTimeString('ru-RU');

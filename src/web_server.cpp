@@ -3,6 +3,9 @@
 #include "config.h"
 #include <esp_system.h>
 
+// Внешняя переменная из main.cpp
+extern float g_cpuUsage;
+
 WeatherWebServer::WeatherWebServer(SensorManager* sensor, WiFiManager* wifi)
     : _server(WEB_SERVER_PORT), _sensor(sensor), _wifi(wifi), _bootTime(0) {
 }
@@ -69,7 +72,7 @@ void WeatherWebServer::handleStats() {
     String json = "{";
     json += "\"uptime\":\"" + getUptimeString() + "\",";
     json += "\"freeHeap\":\"" + String(freeHeap / 1024) + " KB (" + String(heapUsagePercent, 1) + "%)\",";
-    json += "\"cpuUsage\":\"" + String(getCPUUsage(), 1) + "\",";
+    json += "\"cpuUsage\":\"" + String(g_cpuUsage, 1) + "\",";
     json += "\"wifiChannel\":" + String(_wifi->getChannel()) + ",";
     json += "\"ssid\":\"" + _wifi->getSSID() + "\",";
     json += "\"rssi\":\"" + String(_wifi->getRSSI()) + "\",";
@@ -135,7 +138,5 @@ String WeatherWebServer::getUptimeString() {
 }
 
 float WeatherWebServer::getCPUUsage() {
-    // Упрощенная версия - возвращает 0
-    // Для точного расчета нужно использовать глобальные переменные из main.cpp
-    return 0.0;
+    return g_cpuUsage;
 }
