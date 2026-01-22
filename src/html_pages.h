@@ -95,6 +95,15 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
             opacity: 0.8;
         }
         
+        .sensor-description {
+            margin-top: 15px;
+            font-size: 12px;
+            opacity: 0.9;
+            text-align: center;
+            line-height: 1.4;
+            min-height: 40px;
+        }
+        
         .minmax {
             display: flex;
             justify-content: space-around;
@@ -171,7 +180,11 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
             display: flex;
             gap: 10px;
             margin-top: 15px;
-            flex-wrap: wrap;
+            flex-direction: column;
+        }
+        
+        .buttons .btn {
+            width: 100%;
         }
         
         .btn {
@@ -322,39 +335,34 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                 </div>
             </div>
             
-            <div class="card">
-                <h3 style="margin-bottom: 15px; color: #333;">📊 Расчётные данные</h3>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Точка росы</div>
-                        <div class="info-value"><span id="dewPoint">--</span> <span id="dewPointUnit">°C</span></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Теплоощущение</div>
-                        <div class="info-value"><span id="heatIndex">--</span> <span id="heatIndexUnit">°C</span></div>
-                    </div>
-                </div>
-            </div>
-            
             <div class="card sensor-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
                 <div class="sensor-label">💧 Точка росы</div>
                 <div class="sensor-value">
-                    <span id="dewPoint2">--</span>
-                    <span class="sensor-unit" id="dewPointUnit2">°C</span>
+                    <span id="dewPoint">--</span>
+                    <span class="sensor-unit" id="dewPointUnit">°C</span>
                 </div>
-                <div class="sensor-description" style="margin-top: 10px; font-size: 11px; opacity: 0.85; text-align: center;">
-                    Температура конденсации влаги
+                <div class="sensor-description" style="margin-top: 15px; font-size: 12px; opacity: 0.9; text-align: center; line-height: 1.4;">
+                    Температура, при которой водяной пар конденсируется в росу
                 </div>
             </div>
             
             <div class="card sensor-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
                 <div class="sensor-label">🌡️ Теплоощущение</div>
                 <div class="sensor-value">
-                    <span id="heatIndex2">--</span>
-                    <span class="sensor-unit" id="heatIndexUnit2">°C</span>
+                    <span id="heatIndex">--</span>
+                    <span class="sensor-unit" id="heatIndexUnit">°C</span>
                 </div>
-                <div class="sensor-description" style="margin-top: 10px; font-size: 11px; opacity: 0.85; text-align: center;">
-                    Ощущаемая температура с учётом влажности
+                <div class="sensor-description" style="margin-top: 15px; font-size: 12px; opacity: 0.9; text-align: center; line-height: 1.4;">
+                    Ощущаемая температура с учётом влажности воздуха
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 style="margin-bottom: 15px; color: #333;">⚙️ Управление</h3>
+                <div class="buttons" style="margin-top: 0;">
+                    <button class="btn btn-primary" onclick="exportCSV()" style="flex: 1;">📥 Экспорт CSV</button>
+                    <button class="btn btn-success" onclick="resetMinMax()" style="flex: 1;">🔄 Сброс Min/Max</button>
+                    <button class="btn btn-danger" onclick="rebootDevice()" style="flex: 1;">⚡ Перезагрузка</button>
                 </div>
             </div>
             
@@ -397,11 +405,6 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                     </div>
                 </div>
                 
-                <div class="buttons">
-                    <button class="btn btn-primary" onclick="exportCSV()">📥 Экспорт CSV</button>
-                    <button class="btn btn-success" onclick="resetMinMax()">🔄 Сброс Min/Max</button>
-                    <button class="btn btn-danger" onclick="rebootDevice()">⚡ Перезагрузка</button>
-                </div>
             </div>
             
             <div class="card chart-card">
@@ -486,7 +489,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
         }
         
         function updateDisplay() {
-            const units = document.querySelectorAll('#tempUnit, #minTempUnit, #maxTempUnit, #avgTempUnit, #dewPointUnit, #dewPointUnit2, #heatIndexUnit, #heatIndexUnit2');
+            const units = document.querySelectorAll('#tempUnit, #minTempUnit, #maxTempUnit, #avgTempUnit, #dewPointUnit, #heatIndexUnit');
             units.forEach(el => el.textContent = isFahrenheit ? '°F' : '°C');
             updateData();
         }
@@ -515,9 +518,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                     document.getElementById('maxHumid').textContent = data.maxHumid.toFixed(1);
                     document.getElementById('avgHumid').textContent = data.avgHumid.toFixed(1);
                     document.getElementById('dewPoint').textContent = dewP.toFixed(1);
-                    document.getElementById('dewPoint2').textContent = dewP.toFixed(1);
                     document.getElementById('heatIndex').textContent = heatI.toFixed(1);
-                    document.getElementById('heatIndex2').textContent = heatI.toFixed(1);
                     
                     const now = new Date();
                     document.getElementById('updateTime').textContent = now.toLocaleTimeString('ru-RU');
