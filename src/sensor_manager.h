@@ -7,6 +7,7 @@
 class SensorManager {
 public:
     SensorManager();
+    ~SensorManager();  // Добавляем деструктор
     
     bool begin();
     void update();
@@ -18,6 +19,8 @@ public:
     float getMaxTemp();
     float getMinHumid();
     float getMaxHumid();
+    float getAvgTemp();      // Новый метод
+    float getAvgHumid();     // Новый метод
     
     void getHistory(float* tempHist, float* humidHist, int size);
     
@@ -34,6 +37,12 @@ private:
     float _tempHistory[HISTORY_SIZE];
     float _humidHistory[HISTORY_SIZE];
     int _historyIndex;
+    
+    // История на час для расчёта средних (используем динамическую память)
+    float* _hourlyTempHistory;
+    float* _hourlyHumidHistory;
+    int _hourlyHistoryIndex;
+    int _hourlyHistoryCount;  // Счётчик заполненных элементов
     
     void updateHistory();
 };

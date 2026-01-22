@@ -50,6 +50,8 @@ void WeatherWebServer::handleData() {
     json += "\"maxTemp\":" + String(_sensor->getMaxTemp(), 2) + ",";
     json += "\"minHumid\":" + String(_sensor->getMinHumid(), 2) + ",";
     json += "\"maxHumid\":" + String(_sensor->getMaxHumid(), 2) + ",";
+    json += "\"avgTemp\":" + String(_sensor->getAvgTemp(), 2) + ",";
+    json += "\"avgHumid\":" + String(_sensor->getAvgHumid(), 2) + ",";
     json += "\"dewPoint\":" + String(dewPoint, 2) + ",";
     json += "\"heatIndex\":" + String(heatIndex, 2);
     json += "}";

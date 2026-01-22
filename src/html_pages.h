@@ -99,7 +99,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
             display: flex;
             justify-content: space-around;
             margin-top: 15px;
-            font-size: 12px;
+            font-size: 11px;
             opacity: 0.9;
         }
         
@@ -286,6 +286,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                 </div>
                 <div class="minmax">
                     <div>⬇️ Min: <span id="minTemp">--</span><span id="minTempUnit">°C</span></div>
+                    <div>📊 Avg: <span id="avgTemp">--</span><span id="avgTempUnit">°C</span></div>
                     <div>⬆️ Max: <span id="maxTemp">--</span><span id="maxTempUnit">°C</span></div>
                 </div>
                 <div class="temp-unit-toggle">
@@ -306,6 +307,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                 </div>
                 <div class="minmax">
                     <div>⬇️ Min: <span id="minHumid">--</span>%</div>
+                    <div>📊 Avg: <span id="avgHumid">--</span>%</div>
                     <div>⬆️ Max: <span id="maxHumid">--</span>%</div>
                 </div>
             </div>
@@ -452,7 +454,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
         }
         
         function updateDisplay() {
-            const units = document.querySelectorAll('#tempUnit, #minTempUnit, #maxTempUnit, #dewPointUnit, #heatIndexUnit');
+            const units = document.querySelectorAll('#tempUnit, #minTempUnit, #maxTempUnit, #avgTempUnit, #dewPointUnit, #heatIndexUnit');
             units.forEach(el => el.textContent = isFahrenheit ? '°F' : '°C');
             updateData();
         }
@@ -468,6 +470,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                     const temp = isFahrenheit ? celsiusToFahrenheit(data.temperature) : data.temperature;
                     const minT = isFahrenheit ? celsiusToFahrenheit(data.minTemp) : data.minTemp;
                     const maxT = isFahrenheit ? celsiusToFahrenheit(data.maxTemp) : data.maxTemp;
+                    const avgT = isFahrenheit ? celsiusToFahrenheit(data.avgTemp) : data.avgTemp;
                     const dewP = isFahrenheit ? celsiusToFahrenheit(data.dewPoint) : data.dewPoint;
                     const heatI = isFahrenheit ? celsiusToFahrenheit(data.heatIndex) : data.heatIndex;
                     
@@ -475,8 +478,10 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                     document.getElementById('humidity').textContent = data.humidity.toFixed(1);
                     document.getElementById('minTemp').textContent = minT.toFixed(1);
                     document.getElementById('maxTemp').textContent = maxT.toFixed(1);
+                    document.getElementById('avgTemp').textContent = avgT.toFixed(1);
                     document.getElementById('minHumid').textContent = data.minHumid.toFixed(1);
                     document.getElementById('maxHumid').textContent = data.maxHumid.toFixed(1);
+                    document.getElementById('avgHumid').textContent = data.avgHumid.toFixed(1);
                     document.getElementById('dewPoint').textContent = dewP.toFixed(1);
                     document.getElementById('heatIndex').textContent = heatI.toFixed(1);
                     
