@@ -7,7 +7,7 @@
 // WiFi Configuration
 // ============================================
 // Используйте inline для constexpr в C++17 или определите в .cpp файле
-inline const char* WIFI_SSID = "SkyNet";        // Измените на имя вашей сети
+inline const char* WIFI_SSID = "network";        // Измените на имя вашей сети
 inline const char* WIFI_PASSWORD = "password";   // Измените на пароль вашей сети
 
 // ============================================
