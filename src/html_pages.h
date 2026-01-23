@@ -239,6 +239,36 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
             margin-top: 15px;
         }
         
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .chart-btn {
+            padding: 8px 16px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .chart-btn:hover {
+            background: #f0f0f0;
+            transform: translateY(-2px);
+        }
+        
+        .chart-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
         .temp-unit-toggle {
             margin-top: 15px;
             text-align: center;
@@ -408,7 +438,16 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
             </div>
             
             <div class="card chart-card">
-                <h3 style="margin-bottom: 15px; color: #333;">📈 История (последние 3 минуты)</h3>
+                <h3 style="margin-bottom: 15px; color: #333;">📈 История данных</h3>
+                
+                <!-- Переключатели периода -->
+                <div class="chart-controls">
+                    <button class="chart-btn active" onclick="changeChartPeriod('3min')" id="btn-3min">3 минуты</button>
+                    <button class="chart-btn" onclick="changeChartPeriod('10min')" id="btn-10min">10 минут</button>
+                    <button class="chart-btn" onclick="changeChartPeriod('30min')" id="btn-30min">30 минут</button>
+                    <button class="chart-btn" onclick="changeChartPeriod('60min')" id="btn-60min">1 час</button>
+                </div>
+                
                 <canvas id="historyChart"></canvas>
                 <div class="update-time">
                     Обновлено: <span id="updateTime">--</span>
@@ -425,6 +464,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
             humid: []
         };
         let chart;
+        let currentPeriod = '3min';
         
         const ctx = document.getElementById('historyChart').getContext('2d');
         chart = new Chart(ctx, {
@@ -436,13 +476,27 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                     data: chartData.temp,
                     borderColor: '#667eea',
                     backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                    tension: 0.4
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 3,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
+                    pointHoverBackgroundColor: '#667eea',
+                    pointHoverBorderColor: 'white',
+                    pointHoverBorderWidth: 2
                 }, {
                     label: 'Влажность (%)',
                     data: chartData.humid,
                     borderColor: '#4facfe',
                     backgroundColor: 'rgba(79, 172, 254, 0.1)',
                     tension: 0.4,
+                    fill: true,
+                    borderWidth: 3,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
+                    pointHoverBackgroundColor: '#4facfe',
+                    pointHoverBorderColor: 'white',
+                    pointHoverBorderWidth: 2,
                     yAxisID: 'y1'
                 }]
             },
@@ -453,14 +507,74 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                     mode: 'index',
                     intersect: false,
                 },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15,
+                            font: {
+                                size: 13,
+                                weight: 'bold'
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        titleFont: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        bodyFont: {
+                            size: 13
+                        },
+                        borderColor: '#667eea',
+                        borderWidth: 2,
+                        displayColors: true,
+                        callbacks: {
+                            title: function(context) {
+                                return 'Время: ' + context[0].label;
+                            }
+                        }
+                    }
+                },
                 scales: {
+                    x: {
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            font: {
+                                size: 11
+                            },
+                            maxRotation: 0
+                        }
+                    },
                     y: {
                         type: 'linear',
                         display: true,
                         position: 'left',
                         title: {
                             display: true,
-                            text: 'Температура (°C)'
+                            text: 'Температура (°C)',
+                            font: {
+                                size: 13,
+                                weight: 'bold'
+                            },
+                            color: '#667eea'
+                        },
+                        grid: {
+                            color: 'rgba(102, 126, 234, 0.1)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            font: {
+                                size: 11
+                            },
+                            color: '#667eea'
                         }
                     },
                     y1: {
@@ -469,12 +583,27 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                         position: 'right',
                         title: {
                             display: true,
-                            text: 'Влажность (%)'
+                            text: 'Влажность (%)',
+                            font: {
+                                size: 13,
+                                weight: 'bold'
+                            },
+                            color: '#4facfe'
                         },
                         grid: {
                             drawOnChartArea: false,
                         },
+                        ticks: {
+                            font: {
+                                size: 11
+                            },
+                            color: '#4facfe'
+                        }
                     },
+                },
+                animation: {
+                    duration: 750,
+                    easing: 'easeInOutQuart'
                 }
             }
         });
@@ -564,15 +693,38 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
             fetch('/history')
                 .then(response => response.json())
                 .then(data => {
-                    chartData.labels = data.labels;
-                    chartData.temp = data.temp;
-                    chartData.humid = data.humid;
+                    // Фильтруем данные в зависимости от выбранного периода
+                    let pointsToShow = 60; // 3 минуты по умолчанию
+                    
+                    switch(currentPeriod) {
+                        case '3min': pointsToShow = 60; break;
+                        case '10min': pointsToShow = 200; break;
+                        case '30min': pointsToShow = 600; break;
+                        case '60min': pointsToShow = 1200; break;
+                    }
+                    
+                    // Берем последние N точек
+                    const startIndex = Math.max(0, data.labels.length - pointsToShow);
+                    chartData.labels = data.labels.slice(startIndex);
+                    chartData.temp = data.temp.slice(startIndex);
+                    chartData.humid = data.humid.slice(startIndex);
                     
                     chart.data.labels = chartData.labels;
                     chart.data.datasets[0].data = chartData.temp;
                     chart.data.datasets[1].data = chartData.humid;
                     chart.update('none');
                 });
+        }
+        
+        function changeChartPeriod(period) {
+            currentPeriod = period;
+            
+            // Обновляем активную кнопку
+            document.querySelectorAll('.chart-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-' + period).classList.add('active');
+            
+            // Обновляем график
+            updateHistory();
         }
         
         function resetMinMax() {
