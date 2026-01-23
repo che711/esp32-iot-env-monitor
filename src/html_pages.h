@@ -7,7 +7,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Метеостанция</title>
+    <title>ESP32+AHT10 station</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <style>
         * {
@@ -323,16 +323,16 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌡️ Метеостанция ESP32</h1>
-            <div class="subtitle">Мониторинг температуры и влажности</div>
+            <h1>🌡️ ESP32+AHT10 station</h1>
+            <div class="subtitle">Temperature and humidity monitoring</div>
             <div style="margin-top: 15px;">
-                <span id="statusBadge" class="status online">🟢 Подключено</span>
+                <span id="statusBadge" class="status online">🟢 Connect</span>
             </div>
         </div>
         
         <div class="grid">
             <div class="card sensor-card">
-                <div class="sensor-label">🌡️ Температура</div>
+                <div class="sensor-label">🌡️ Temperature</div>
                 <div class="sensor-value">
                     <span id="temperature">--</span>
                     <span class="sensor-unit" id="tempUnit">°C</span>
@@ -353,7 +353,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
             </div>
             
             <div class="card sensor-card humidity-card">
-                <div class="sensor-label">💧 Влажность</div>
+                <div class="sensor-label">💧 Humidity</div>
                 <div class="sensor-value">
                     <span id="humidity">--</span>
                     <span class="sensor-unit">%</span>
@@ -366,53 +366,53 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
             </div>
             
             <div class="card sensor-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                <div class="sensor-label">💧 Точка росы</div>
+                <div class="sensor-label">💧 Dew point</div>
                 <div class="sensor-value">
                     <span id="dewPoint">--</span>
                     <span class="sensor-unit" id="dewPointUnit">°C</span>
                 </div>
                 <div class="sensor-description" style="margin-top: 15px; font-size: 12px; opacity: 0.9; text-align: center; line-height: 1.4;">
-                    Температура, при которой водяной пар конденсируется в росу
+                    The temperature at which water vapor condenses into dew
                 </div>
             </div>
             
             <div class="card sensor-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
-                <div class="sensor-label">🌡️ Теплоощущение</div>
+                <div class="sensor-label">🌡️ Heat sensation</div>
                 <div class="sensor-value">
                     <span id="heatIndex">--</span>
                     <span class="sensor-unit" id="heatIndexUnit">°C</span>
                 </div>
                 <div class="sensor-description" style="margin-top: 15px; font-size: 12px; opacity: 0.9; text-align: center; line-height: 1.4;">
-                    Ощущаемая температура с учётом влажности воздуха
+                    The perceived temperature, taking into account the humidity of the air
                 </div>
             </div>
             
             <div class="card">
-                <h3 style="margin-bottom: 15px; color: #333;">⚙️ Управление</h3>
+                <h3 style="margin-bottom: 15px; color: #333;">⚙️ Control</h3>
                 <div class="buttons" style="margin-top: 0;">
-                    <button class="btn btn-primary" onclick="exportCSV()" style="flex: 1;">📥 Экспорт CSV</button>
-                    <button class="btn btn-success" onclick="resetMinMax()" style="flex: 1;">🔄 Сброс Min/Max</button>
-                    <button class="btn btn-danger" onclick="rebootDevice()" style="flex: 1;">⚡ Перезагрузка</button>
+                    <button class="btn btn-primary" onclick="exportCSV()" style="flex: 1;">📥 CSV Export</button>
+                    <button class="btn btn-success" onclick="resetMinMax()" style="flex: 1;">🔄 Reset Min/Max</button>
+                    <button class="btn btn-danger" onclick="rebootDevice()" style="flex: 1;">⚡ Reboot</button>
                 </div>
             </div>
             
             <div class="card">
-                <h3 style="margin-bottom: 15px; color: #333;">⚙️ Система</h3>
+                <h3 style="margin-bottom: 15px; color: #333;">⚙️ System</h3>
                 <div class="info-grid">
                     <div class="info-item">
-                        <div class="info-label">Время работы</div>
+                        <div class="info-label">Working time</div>
                         <div class="info-value" id="uptime">--</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">Свободно RAM</div>
+                        <div class="info-label">Free RAM</div>
                         <div class="info-value" id="freeHeap">--</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">Использование CPU</div>
+                        <div class="info-label">CPU usage</div>
                         <div class="info-value" id="cpuUsage">--</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">WiFi канал</div>
+                        <div class="info-label">WiFi channel</div>
                         <div class="info-value" id="wifiChannel">--</div>
                     </div>
                     <div class="info-item">
@@ -426,11 +426,11 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                         <div class="info-value" id="rssi">--</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">IP адрес</div>
+                        <div class="info-label">IP address</div>
                         <div class="info-value" id="ipAddr" style="font-size: 12px;">--</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">Переподключений</div>
+                        <div class="info-label">Reconnects</div>
                         <div class="info-value" id="reconnects">--</div>
                     </div>
                 </div>
@@ -438,15 +438,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
             </div>
             
             <div class="card chart-card">
-                <h3 style="margin-bottom: 15px; color: #333;">📈 История данных</h3>
-                
-                <!-- Переключатели периода -->
-                <div class="chart-controls">
-                    <button class="chart-btn active" onclick="changeChartPeriod('3min')" id="btn-3min">3 минуты</button>
-                    <button class="chart-btn" onclick="changeChartPeriod('10min')" id="btn-10min">10 минут</button>
-                    <button class="chart-btn" onclick="changeChartPeriod('30min')" id="btn-30min">30 минут</button>
-                    <button class="chart-btn" onclick="changeChartPeriod('60min')" id="btn-60min">1 час</button>
-                </div>
+                <h3 style="margin-bottom: 15px; color: #333;">📈 Data history</h3>
                 
                 <canvas id="historyChart"></canvas>
                 <div class="update-time">
@@ -472,7 +464,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
             data: {
                 labels: chartData.labels,
                 datasets: [{
-                    label: 'Температура (°C)',
+                    label: 'Temperature (°C)',
                     data: chartData.temp,
                     borderColor: '#667eea',
                     backgroundColor: 'rgba(102, 126, 234, 0.1)',
@@ -485,7 +477,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                     pointHoverBorderColor: 'white',
                     pointHoverBorderWidth: 2
                 }, {
-                    label: 'Влажность (%)',
+                    label: 'Humidity (%)',
                     data: chartData.humid,
                     borderColor: '#4facfe',
                     backgroundColor: 'rgba(79, 172, 254, 0.1)',
@@ -559,7 +551,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                         position: 'left',
                         title: {
                             display: true,
-                            text: 'Температура (°C)',
+                            text: 'Temperature (°C)',
                             font: {
                                 size: 13,
                                 weight: 'bold'
@@ -583,7 +575,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                         position: 'right',
                         title: {
                             display: true,
-                            text: 'Влажность (%)',
+                            text: 'Humidity (%)',
                             font: {
                                 size: 13,
                                 weight: 'bold'
@@ -654,14 +646,14 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
                     
                     errorCount = 0;
                     document.getElementById('statusBadge').className = 'status online';
-                    document.getElementById('statusBadge').innerHTML = '🟢 Подключено';
+                    document.getElementById('statusBadge').innerHTML = '🟢 Connect';
                 })
                 .catch(error => {
                     console.error('Ошибка:', error);
                     errorCount++;
                     if (errorCount > 2) {
                         document.getElementById('statusBadge').className = 'status offline';
-                        document.getElementById('statusBadge').innerHTML = '🔴 Ошибка';
+                        document.getElementById('statusBadge').innerHTML = '🔴 Disconnect';
                     }
                 });
         }
@@ -749,7 +741,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
         }
         
         function exportCSV() {
-            let csv = 'Время,Температура (°C),Влажность (%)\n';
+            let csv = 'Time,Temperature (°C),Humidity (%)\n';
             for (let i = 0; i < chartData.labels.length; i++) {
                 csv += `${chartData.labels[i]},${chartData.temp[i]},${chartData.humid[i]}\n`;
             }
