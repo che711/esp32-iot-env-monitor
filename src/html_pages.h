@@ -438,7 +438,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
             </div>
             
             <div class="card chart-card">
-                <h3 style="margin-bottom: 15px; color: #333;">📈 Data history</h3>
+                <h3 style="margin-bottom: 15px; color: #333;">📈 Data history last 3 mins</h3>
                 
                 <canvas id="historyChart"></canvas>
                 <div class="update-time">
