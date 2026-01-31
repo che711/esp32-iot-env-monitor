@@ -61,10 +61,6 @@ canvas{max-height:350px}
 .slider:before{position:absolute;content:"";height:24px;width:24px;left:3px;bottom:3px;background:#fff;transition:.4s;border-radius:50%}
 input:checked+.slider{background:rgba(255,255,255,.4)}
 input:checked+.slider:before{transform:translateX(30px)}
-.chart-controls{display:flex;gap:10px;margin-bottom:20px;justify-content:center;flex-wrap:wrap}
-.chart-btn{padding:10px 20px;border:2px solid #667eea;background:#fff;color:#667eea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:.3s}
-.chart-btn:hover{background:#f0f0f0}
-.chart-btn.active{background:#667eea;color:#fff;border-color:transparent}
 .update-time{text-align:center;color:#999;font-size:12px;margin-top:15px;padding:10px;background:#f8f9fa;border-radius:8px}
 .comfort-indicator{margin-top:10px;padding:8px 12px;border-radius:8px;font-size:11px;font-weight:600;text-align:center;background:rgba(255,255,255,.2)}
 .comfort-excellent{background:rgba(40,167,69,.3)}
@@ -136,21 +132,16 @@ body{padding:10px}
 <button class="btn btn-danger" onclick="rebootDevice()">⚡ Перезагрузка</button>
 </div>
 </div>
-<div class="card">
+<div class="card" style="grid-column:span 3">
 <h3 style="margin-bottom:15px;color:#333">💻 Система</h3>
 <div class="info-grid">
 <div class="info-item"><div class="info-label">⏱️ Время</div><div class="info-value" id="uptime">--</div></div>
 <div class="info-item"><div class="info-label">🧠 RAM</div><div class="info-value" id="freeHeap">--</div></div>
 <div class="info-item"><div class="info-label">📊 CPU</div><div class="info-value" id="cpuUsage">--</div></div>
-<div class="info-item"><div class="info-label">📡 Канал</div><div class="info-value" id="wifiChannel">--</div></div>
 <div class="info-item"><div class="info-label">📶 SSID</div><div class="info-value" id="ssid" style="font-size:13px">--</div></div>
 <div class="info-item"><div class="info-label"><span id="wifiSignal">📶</span> RSSI</div><div class="info-value" id="rssi">--</div></div>
 <div class="info-item"><div class="info-label">🌐 IP</div><div class="info-value" id="ipAddr" style="font-size:11px">--</div></div>
-<div class="info-item"><div class="info-label">🔄 Переподкл.</div><div class="info-value" id="reconnects">--</div></div>
 </div>
-</div>
-<div class="card chart-card">
-<h3 style="margin-bottom:15px;color:#333">📈 История</h3>
 </div>
 <div class="card chart-card">
 <h3 style="margin-bottom:15px;color:#333">🌡️ Температура</h3>
@@ -170,7 +161,7 @@ body{padding:10px}
 </div>
 </div>
 <script>
-let F=false,D={labels:[],temp:[],humid:[],heat:[]},T,H,E,P='3min',errCnt=0,iU,iS,iH;
+let F=false,D={labels:[],temp:[],humid:[],heat:[]},T,H,E,errCnt=0,iU,iS,iH;
 const O={responsive:!0,maintainAspectRatio:!0,interaction:{mode:'index',intersect:!1},plugins:{legend:{display:!1},tooltip:{backgroundColor:'rgba(0,0,0,.8)',padding:15,titleFont:{size:14,weight:'bold'},bodyFont:{size:14},borderWidth:2,callbacks:{title:c=>'Время: '+c[0].label,label:c=>c.dataset.label+': '+c.parsed.y.toFixed(1)}}},scales:{x:{grid:{color:'rgba(0,0,0,.05)',drawBorder:!1},ticks:{font:{size:11},maxRotation:0,autoSkip:!0,maxTicksLimit:10}},y:{grid:{drawBorder:!1},ticks:{font:{size:12}}}},animation:{duration:750,easing:'easeInOutQuart'}};
 function initCharts(){
 const tc=document.getElementById('tempChart').getContext('2d');
@@ -229,18 +220,15 @@ fetch('/stats').then(r=>r.json()).then(d=>{
 document.getElementById('uptime').textContent=d.uptime;
 document.getElementById('freeHeap').textContent=d.freeHeap;
 document.getElementById('cpuUsage').textContent=d.cpuUsage+'%';
-document.getElementById('wifiChannel').textContent=d.wifiChannel;
 document.getElementById('ssid').textContent=d.ssid||'--';
 document.getElementById('rssi').textContent=d.rssi+' dBm';
 document.getElementById('ipAddr').textContent=d.ip;
-document.getElementById('reconnects').textContent=d.reconnects;
 const r=parseInt(d.rssi);document.getElementById('wifiSignal').textContent=r>-50?'📶':r>-60?'📶':r>-70?'📡':'📉';
 }).catch(e=>console.error(e));
 }
 function updateHistory(){
 fetch('/history').then(r=>r.json()).then(d=>{
-let pts=60;
-switch(P){case'3min':pts=60;break;case'10min':pts=200;break;case'30min':pts=600;break;case'60min':pts=1200;break;}
+const pts=60;
 const si=Math.max(0,d.labels.length-pts);
 D.labels=d.labels.slice(si);D.temp=d.temp.slice(si);D.humid=d.humid.slice(si);
 if(d.heat){D.heat=d.heat.slice(si);}else{
@@ -256,7 +244,6 @@ document.getElementById('updateTimeHumid').textContent=ts;
 document.getElementById('updateTimeHeat').textContent=ts;
 }).catch(e=>console.error(e));
 }
-function changePeriod(p){P=p;document.querySelectorAll('.chart-btn').forEach(b=>b.classList.remove('active'));document.getElementById('btn-'+p).classList.add('active');updateHistory();}
 function resetMinMax(){if(confirm('Сбросить min/max?')){fetch('/reset').then(r=>r.json()).then(d=>{alert(d.message||'Сброшено');updateData();}).catch(e=>alert('Ошибка'));}}
 function rebootDevice(){if(confirm('⚠️ Перезагрузить устройство?')){fetch('/reboot').then(()=>{alert('Перезагрузка...');clearInterval(iU);clearInterval(iS);clearInterval(iH);setTimeout(()=>location.reload(),10000);}).catch(e=>console.error(e));}}
 function exportCSV(){
