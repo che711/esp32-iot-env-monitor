@@ -6,7 +6,7 @@
 // ============================================
 // WiFi Configuration
 // ============================================
-inline const char* WIFI_SSID = "network";        // Change this param
+inline const char* WIFI_SSID = "SkyNet";        // Change this param
 inline const char* WIFI_PASSWORD = "password";   // Change this param
 // ============================================
 // Weather API Configuration
@@ -26,8 +26,8 @@ inline constexpr uint32_t I2C_FREQ = 100000; // Частота I2C (100 кГц)
 // ============================================
 // Timing Configuration
 // ============================================
-inline constexpr unsigned long SENSOR_INTERVAL = 3000;      // Интервал чтения датчика (мс)
-inline constexpr unsigned long WIFI_CHECK_INTERVAL = 10000; // Интервал проверки WiFi (мс)
+inline constexpr unsigned long SENSOR_INTERVAL = 5000;      // Интервал чтения датчика (мс)
+inline constexpr unsigned long WIFI_CHECK_INTERVAL = 600000; // Интервал проверки WiFi (мс)
 
 // ============================================
 // History Configuration
