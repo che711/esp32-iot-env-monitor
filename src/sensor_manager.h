@@ -7,44 +7,64 @@
 class SensorManager {
 public:
     SensorManager();
-    ~SensorManager();  // Добавляем деструктор
+    ~SensorManager();
     
     bool begin();
-    void update();
+    bool update();
     void resetMinMax();
     
-    float getTemperature();
-    float getHumidity();
-    float getMinTemp();
-    float getMaxTemp();
-    float getMinHumid();
-    float getMaxHumid();
-    float getAvgTemp();      // Новый метод
-    float getAvgHumid();     // Новый метод
+    // Геттеры текущих значений
+    float getTemperature() const;
+    float getHumidity() const;
     
-    void getHistory(float* tempHist, float* humidHist, int size);
+    // Геттеры min/max
+    float getMinTemp() const;
+    float getMaxTemp() const;
+    float getMinHumid() const;
+    float getMaxHumid() const;
+    
+    // Геттеры средних значений
+    float getAvgTemp() const;
+    float getAvgHumid() const;
+    
+    // История для графиков
+    void getHistory(float* tempHist, float* humidHist, int size) const;
+    
+    // Статус датчика
+    bool isValid() const;
+    int getReadErrorCount() const;
     
 private:
     Adafruit_AHTX0 _aht;
     
+    // Текущие значения
     float _temperature;
     float _humidity;
+    
+    // Min/Max значения
     float _minTemp;
     float _maxTemp;
     float _minHumid;
     float _maxHumid;
     
+    // История для графика (3 минуты)
     float _tempHistory[HISTORY_SIZE];
     float _humidHistory[HISTORY_SIZE];
     int _historyIndex;
     
-    // История на час для расчёта средних (используем динамическую память)
+    // Часовая история для средних значений
     float* _hourlyTempHistory;
     float* _hourlyHumidHistory;
     int _hourlyHistoryIndex;
-    int _hourlyHistoryCount;  // Счётчик заполненных элементов
+    int _hourlyHistoryCount;
     
+    // Статистика ошибок
+    int _readErrorCount;
+    unsigned long _lastSuccessfulRead;
+    
+    // Внутренние методы
     void updateHistory();
+    bool validateReading(float temp, float humid);
 };
 
 #endif // SENSOR_MANAGER_H

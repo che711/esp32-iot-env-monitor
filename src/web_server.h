@@ -13,11 +13,15 @@ public:
     void begin();
     void handleClient();
     
+    // Статистика
+    unsigned long getRequestCount() const;
+    
 private:
     WebServer _server;
     SensorManager* _sensor;
     WiFiManager* _wifi;
     unsigned long _bootTime;
+    unsigned long _requestCount;
     
     // Обработчики маршрутов
     void handleRoot();
@@ -29,8 +33,12 @@ private:
     void handleNotFound();
     
     // Вспомогательные функции
-    String getUptimeString();
-    float getCPUUsage();
+    String getUptimeString() const;
+    String formatBytes(size_t bytes) const;
+    float getCPUUsage() const;
+    
+    // CORS headers
+    void setCORSHeaders();
 };
 
 #endif // WEB_SERVER_H
