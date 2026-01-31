@@ -53,7 +53,7 @@ async function getHistory() {
     }
 }
 
-// Автоматическое обновление каждые 3 секунды
+// Автоматическое обновление каждые 10 секунд
 setInterval(async () => {
     const data = await getCurrentData();
     // Обновить UI

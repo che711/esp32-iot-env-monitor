@@ -6,7 +6,7 @@
 // ============================================
 // WiFi Configuration
 // ============================================
-inline const char* WIFI_SSID = "network";
+inline const char* WIFI_SSID = "SkyNet";
 inline const char* WIFI_PASSWORD = "password";
 inline constexpr int WIFI_MAX_RETRY = 30;
 inline constexpr unsigned long WIFI_TIMEOUT = 15000;
@@ -21,9 +21,9 @@ inline constexpr uint32_t I2C_FREQ = 100000;
 // ============================================
 // Timing Configuration
 // ============================================
-inline constexpr unsigned long SENSOR_INTERVAL = 3000;       // Чтение датчика каждые 3 сек
-inline constexpr unsigned long WIFI_CHECK_INTERVAL = 30000;  // Проверка WiFi каждые 30 сек
-inline constexpr unsigned long STATS_UPDATE_INTERVAL = 1000; // Обновление статистики каждую сек
+inline constexpr unsigned long SENSOR_INTERVAL = 10000;       // Чтение датчика каждые 10 сек
+inline constexpr unsigned long WIFI_CHECK_INTERVAL = 3000000;  // Проверка WiFi каждые 300 сек
+inline constexpr unsigned long STATS_UPDATE_INTERVAL = 10000; // Обновление статистики каждые 10 сек
 
 // ============================================
 // History Configuration
