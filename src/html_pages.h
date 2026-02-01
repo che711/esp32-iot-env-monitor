@@ -119,7 +119,7 @@ body{padding:10px}
 <div class="sensor-description">Температура конденсации водяного пара</div>
 </div>
 <div class="card sensor-card heatindex-card">
-<div class="sensor-header"><div class="sensor-label">🌡️ Ощущаемая температура</div></div>
+<div class="sensor-header"><div class="sensor-label">🌡️ Ощущаемая</div></div>
 <div class="sensor-value"><span id="heatIndex">--</span><span class="sensor-unit" id="heatIndexUnit">°C</span></div>
 <div class="sensor-description">Восприятие температуры с учётом влажности</div>
 </div>
@@ -154,7 +154,7 @@ body{padding:10px}
 <div class="update-time">Обновлено: <span id="updateTimeHumid">--</span></div>
 </div>
 <div class="card chart-card">
-<h3 style="margin-bottom:15px;color:#333">🔥 Ощущаемая температура</h3>
+<h3 style="margin-bottom:15px;color:#333">🔥 Ощущаемая</h3>
 <canvas id="heatChart"></canvas>
 <div class="update-time">Обновлено: <span id="updateTimeHeat">--</span></div>
 </div>
@@ -162,14 +162,14 @@ body{padding:10px}
 </div>
 <script>
 let F=false,D={labels:[],temp:[],humid:[],heat:[]},T,H,E,errCnt=0,iU,iS,iH;
-const O={responsive:!0,maintainAspectRatio:!0,interaction:{mode:'index',intersect:!1},plugins:{legend:{display:!1},tooltip:{backgroundColor:'rgba(0,0,0,.8)',padding:15,titleFont:{size:14,weight:'bold'},bodyFont:{size:14},borderWidth:2,callbacks:{title:c=>'Время: '+c[0].label,label:c=>c.dataset.label+': '+c.parsed.y.toFixed(1)}}},scales:{x:{grid:{color:'rgba(0,0,0,.05)',drawBorder:!1},ticks:{font:{size:11},maxRotation:0,autoSkip:!0,maxTicksLimit:10}},y:{grid:{drawBorder:!1},ticks:{font:{size:12}}}},animation:{duration:750,easing:'easeInOutQuart'}};
+const O={responsive:!0,maintainAspectRatio:!0,interaction:{mode:'index',intersect:!1},plugins:{legend:{display:!1},tooltip:{backgroundColor:'rgba(0,0,0,.8)',padding:15,titleFont:{size:14,weight:'bold'},bodyFont:{size:14},borderWidth:2,callbacks:{title:c=>'Время: '+c[0].label,label:c=>c.dataset.label+': '+c.parsed.y.toFixed(1)}}},scales:{x:{grid:{color:'rgba(0,0,0,.05)',drawBorder:!1},ticks:{font:{size:11},maxRotation:0,autoSkip:!0,maxTicksLimit:10}},y:{grid:{drawBorder:!1},ticks:{font:{size:12}}}},animation:{duration:750,easing:'easeInOutQuart',delay:0},transitions:{active:{animation:{duration:200}},resize:{animation:{duration:750,easing:'easeInOutQuart'}},show:{animation:{duration:750,easing:'easeOutQuart',x:{from:0,to:1}}}}};
 function initCharts(){
 const tc=document.getElementById('tempChart').getContext('2d');
 T=new Chart(tc,{type:'line',data:{labels:D.labels,datasets:[{label:'Температура (°C)',data:D.temp,borderColor:'#667eea',backgroundColor:'rgba(102,126,234,.15)',tension:.4,fill:!0,borderWidth:3,pointRadius:0,pointHoverRadius:7,pointHoverBackgroundColor:'#667eea',pointHoverBorderColor:'white',pointHoverBorderWidth:3}]},options:{...O,plugins:{...O.plugins,tooltip:{...O.plugins.tooltip,borderColor:'#667eea'}},scales:{...O.scales,y:{...O.scales.y,title:{display:!0,text:'Температура (°C)',font:{size:13,weight:'bold'},color:'#667eea'},grid:{...O.scales.y.grid,color:'rgba(102,126,234,.1)'},ticks:{...O.scales.y.ticks,color:'#667eea'}}}}});
 const hc=document.getElementById('humidChart').getContext('2d');
 H=new Chart(hc,{type:'line',data:{labels:D.labels,datasets:[{label:'Влажность (%)',data:D.humid,borderColor:'#4facfe',backgroundColor:'rgba(79,172,254,.15)',tension:.4,fill:!0,borderWidth:3,pointRadius:0,pointHoverRadius:7,pointHoverBackgroundColor:'#4facfe',pointHoverBorderColor:'white',pointHoverBorderWidth:3}]},options:{...O,plugins:{...O.plugins,tooltip:{...O.plugins.tooltip,borderColor:'#4facfe'}},scales:{...O.scales,y:{...O.scales.y,title:{display:!0,text:'Влажность (%)',font:{size:13,weight:'bold'},color:'#4facfe'},grid:{...O.scales.y.grid,color:'rgba(79,172,254,.1)'},ticks:{...O.scales.y.ticks,color:'#4facfe'}}}}});
 const ec=document.getElementById('heatChart').getContext('2d');
-E=new Chart(ec,{type:'line',data:{labels:D.labels,datasets:[{label:'Ощущаемая температура (°C)',data:D.heat,borderColor:'#fa709a',backgroundColor:'rgba(250,112,154,.15)',tension:.4,fill:!0,borderWidth:3,pointRadius:0,pointHoverRadius:7,pointHoverBackgroundColor:'#fa709a',pointHoverBorderColor:'white',pointHoverBorderWidth:3}]},options:{...O,plugins:{...O.plugins,tooltip:{...O.plugins.tooltip,borderColor:'#fa709a'}},scales:{...O.scales,y:{...O.scales.y,title:{display:!0,text:'Ощущаемая температура(°C)',font:{size:13,weight:'bold'},color:'#fa709a'},grid:{...O.scales.y.grid,color:'rgba(250,112,154,.1)'},ticks:{...O.scales.y.ticks,color:'#fa709a'}}}}});
+E=new Chart(ec,{type:'line',data:{labels:D.labels,datasets:[{label:'Ощущаемая (°C)',data:D.heat,borderColor:'#fa709a',backgroundColor:'rgba(250,112,154,.15)',tension:.4,fill:!0,borderWidth:3,pointRadius:0,pointHoverRadius:7,pointHoverBackgroundColor:'#fa709a',pointHoverBorderColor:'white',pointHoverBorderWidth:3}]},options:{...O,plugins:{...O.plugins,tooltip:{...O.plugins.tooltip,borderColor:'#fa709a'}},scales:{...O.scales,y:{...O.scales.y,title:{display:!0,text:'Ощущаемая (°C)',font:{size:13,weight:'bold'},color:'#fa709a'},grid:{...O.scales.y.grid,color:'rgba(250,112,154,.1)'},ticks:{...O.scales.y.ticks,color:'#fa709a'}}}}});
 }
 function c2f(c){return c*9/5+32}
 function toggleUnit(){F=!F;updateDisplay()}
@@ -177,8 +177,8 @@ function updateDisplay(){
 document.querySelectorAll('#tempUnit,#minTempUnit,#maxTempUnit,#avgTempUnit,#dewPointUnit,#heatIndexUnit').forEach(e=>e.textContent=F?'°F':'°C');
 T.data.datasets[0].label=F?'Температура (°F)':'Температура (°C)';
 T.options.scales.y.title.text=F?'Температура (°F)':'Температура (°C)';
-E.data.datasets[0].label=F?'Ощущаемая температура(°F)':'Ощущаемая температура(°C)';
-E.options.scales.y.title.text=F?'Ощущаемая температура(°F)':'Ощущаемая температура(°C)';
+E.data.datasets[0].label=F?'Ощущаемая (°F)':'Ощущаемая (°C)';
+E.options.scales.y.title.text=F?'Ощущаемая (°F)':'Ощущаемая (°C)';
 T.update('none');E.update('none');updateData();
 }
 function getComfort(v,isTemp){
@@ -235,9 +235,9 @@ if(d.heat){D.heat=d.heat.slice(si);}else{
 D.heat=D.temp.map((t,i)=>{const h=D.humid[i];if(t<27)return t;
 return -8.78469475556+1.61139411*t+2.33854883889*h+-0.14611605*t*h+-0.012308094*t*t+-0.0164248277778*h*h+0.002211732*t*t*h+0.00072546*t*h*h+-0.000003582*t*t*h*h;});
 }
-T.data.labels=D.labels;T.data.datasets[0].data=D.temp;T.update('none');
-H.data.labels=D.labels;H.data.datasets[0].data=D.humid;H.update('none');
-E.data.labels=D.labels;E.data.datasets[0].data=D.heat;E.update('none');
+T.data.labels=D.labels;T.data.datasets[0].data=D.temp;T.update('active');
+H.data.labels=D.labels;H.data.datasets[0].data=D.humid;H.update('active');
+E.data.labels=D.labels;E.data.datasets[0].data=D.heat;E.update('active');
 const ts=new Date().toLocaleTimeString('ru-RU');
 document.getElementById('updateTimeTemp').textContent=ts;
 document.getElementById('updateTimeHumid').textContent=ts;
@@ -247,7 +247,7 @@ document.getElementById('updateTimeHeat').textContent=ts;
 function resetMinMax(){if(confirm('Сбросить min/max?')){fetch('/reset').then(r=>r.json()).then(d=>{alert(d.message||'Сброшено');updateData();}).catch(e=>alert('Ошибка'));}}
 function rebootDevice(){if(confirm('⚠️ Перезагрузить устройство?')){fetch('/reboot').then(()=>{alert('Перезагрузка...');clearInterval(iU);clearInterval(iS);clearInterval(iH);setTimeout(()=>location.reload(),10000);}).catch(e=>console.error(e));}}
 function exportCSV(){
-let csv='Время,Температура,Влажность,Ощущаемая температура\n';
+let csv='Время,Температура,Влажность,Ощущаемая\n';
 for(let i=0;i<D.labels.length;i++)csv+=`${D.labels[i]},${D.temp[i]},${D.humid[i]},${D.heat[i]}\n`;
 const b=new Blob([csv],{type:'text/csv'});const u=URL.createObjectURL(b);const a=document.createElement('a');
 a.href=u;a.download=`esp32_${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(u);
