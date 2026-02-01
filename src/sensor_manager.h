@@ -29,6 +29,8 @@ public:
     
     // История для графиков
     void getHistory(float* tempHist, float* humidHist, int size) const;
+    int  getHistoryIndex() const;
+    int  getHistoryCount() const;
     
     // Статус датчика
     bool isValid() const;
@@ -51,6 +53,7 @@ private:
     float _tempHistory[HISTORY_SIZE];
     float _humidHistory[HISTORY_SIZE];
     int _historyIndex;
+    int _historyCount;
     
     // Часовая история для средних значений
     float* _hourlyTempHistory;

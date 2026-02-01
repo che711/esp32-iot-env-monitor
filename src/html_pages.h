@@ -162,7 +162,7 @@ body{padding:10px}
 </div>
 <script>
 let F=false,D={labels:[],temp:[],humid:[],heat:[]},T,H,E,errCnt=0,iU,iS,iH;
-const O={responsive:!0,maintainAspectRatio:!0,interaction:{mode:'index',intersect:!1},plugins:{legend:{display:!1},tooltip:{backgroundColor:'rgba(0,0,0,.8)',padding:15,titleFont:{size:14,weight:'bold'},bodyFont:{size:14},borderWidth:2,callbacks:{title:c=>'Время: '+c[0].label,label:c=>c.dataset.label+': '+c.parsed.y.toFixed(1)}}},scales:{x:{grid:{color:'rgba(0,0,0,.05)',drawBorder:!1},ticks:{font:{size:11},maxRotation:0,autoSkip:!0,maxTicksLimit:10}},y:{grid:{drawBorder:!1},ticks:{font:{size:12}}}},animation:{duration:750,easing:'easeInOutQuart'}};
+const O={responsive:!0,maintainAspectRatio:!0,interaction:{mode:'index',intersect:!1},plugins:{legend:{display:!1},tooltip:{backgroundColor:'rgba(0,0,0,.8)',padding:15,titleFont:{size:14,weight:'bold'},bodyFont:{size:14},borderWidth:2,callbacks:{title:c=>'Время: '+c[0].label,label:c=>c.dataset.label+': '+c.parsed.y.toFixed(1)}}},scales:{x:{grid:{color:'rgba(0,0,0,.05)',drawBorder:!1},ticks:{font:{size:11},maxRotation:0,autoSkip:!0,maxTicksLimit:10}},y:{grid:{drawBorder:!1},ticks:{font:{size:12}}}},animation:{duration:750,easing:'easeInOutQuart',delay:0},transitions:{active:{animation:{duration:200}},resize:{animation:{duration:750,easing:'easeInOutQuart'}},show:{animation:{duration:750,easing:'easeOutQuart',x:{from:0,to:1}}}}};
 function initCharts(){
 const tc=document.getElementById('tempChart').getContext('2d');
 T=new Chart(tc,{type:'line',data:{labels:D.labels,datasets:[{label:'Температура (°C)',data:D.temp,borderColor:'#667eea',backgroundColor:'rgba(102,126,234,.15)',tension:.4,fill:!0,borderWidth:3,pointRadius:0,pointHoverRadius:7,pointHoverBackgroundColor:'#667eea',pointHoverBorderColor:'white',pointHoverBorderWidth:3}]},options:{...O,plugins:{...O.plugins,tooltip:{...O.plugins.tooltip,borderColor:'#667eea'}},scales:{...O.scales,y:{...O.scales.y,title:{display:!0,text:'Температура (°C)',font:{size:13,weight:'bold'},color:'#667eea'},grid:{...O.scales.y.grid,color:'rgba(102,126,234,.1)'},ticks:{...O.scales.y.ticks,color:'#667eea'}}}}});
@@ -235,9 +235,9 @@ if(d.heat){D.heat=d.heat.slice(si);}else{
 D.heat=D.temp.map((t,i)=>{const h=D.humid[i];if(t<27)return t;
 return -8.78469475556+1.61139411*t+2.33854883889*h+-0.14611605*t*h+-0.012308094*t*t+-0.0164248277778*h*h+0.002211732*t*t*h+0.00072546*t*h*h+-0.000003582*t*t*h*h;});
 }
-T.data.labels=D.labels;T.data.datasets[0].data=D.temp;T.update('none');
-H.data.labels=D.labels;H.data.datasets[0].data=D.humid;H.update('none');
-E.data.labels=D.labels;E.data.datasets[0].data=D.heat;E.update('none');
+T.data.labels=D.labels;T.data.datasets[0].data=D.temp;T.update('active');
+H.data.labels=D.labels;H.data.datasets[0].data=D.humid;H.update('active');
+E.data.labels=D.labels;E.data.datasets[0].data=D.heat;E.update('active');
 const ts=new Date().toLocaleTimeString('ru-RU');
 document.getElementById('updateTimeTemp').textContent=ts;
 document.getElementById('updateTimeHumid').textContent=ts;

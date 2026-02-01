@@ -6,7 +6,7 @@ SensorManager::SensorManager()
     : _temperature(0.0), _humidity(0.0),
       _minTemp(TEMP_INIT_MIN), _maxTemp(TEMP_INIT_MAX),
       _minHumid(HUMID_INIT_MIN), _maxHumid(HUMID_INIT_MAX),
-      _historyIndex(0), _hourlyHistoryIndex(0), _hourlyHistoryCount(0),
+      _historyIndex(0), _historyCount(0), _hourlyHistoryIndex(0), _hourlyHistoryCount(0),
       _readErrorCount(0), _lastSuccessfulRead(0) {
     
     // Инициализация истории для графика
@@ -105,6 +105,10 @@ void SensorManager::updateHistory() {
     _humidHistory[_historyIndex] = _humidity;
     _historyIndex = (_historyIndex + 1) % HISTORY_SIZE;
     
+    if (_historyCount < HISTORY_SIZE) {
+        _historyCount++;
+    }
+    
     // Обновление часовой истории
     _hourlyTempHistory[_hourlyHistoryIndex] = _temperature;
     _hourlyHumidHistory[_hourlyHistoryIndex] = _humidity;
@@ -184,11 +188,30 @@ float SensorManager::getAvgHumid() const {
 }
 
 void SensorManager::getHistory(float* tempHist, float* humidHist, int size) const {
-    int count = min(size, HISTORY_SIZE);
-    for(int i = 0; i < count; i++) {
-        tempHist[i] = _tempHistory[i];
-        humidHist[i] = _humidHistory[i];
+    int count = min(size, _historyCount);
+    
+    // Если буфер ещё не заполнен — данные лежат просто с 0 до _historyCount
+    if (_historyCount < HISTORY_SIZE) {
+        for (int i = 0; i < count; i++) {
+            tempHist[i]  = _tempHistory[i];
+            humidHist[i] = _humidHistory[i];
+        }
+    } else {
+        // Буфер заполнен и уже ротировал — самый старый элемент стоит на _historyIndex
+        for (int i = 0; i < count; i++) {
+            int idx = (_historyIndex + i) % HISTORY_SIZE;
+            tempHist[i]  = _tempHistory[idx];
+            humidHist[i] = _humidHistory[idx];
+        }
     }
+}
+
+int SensorManager::getHistoryIndex() const {
+    return _historyIndex;
+}
+
+int SensorManager::getHistoryCount() const {
+    return _historyCount;
 }
 
 bool SensorManager::isValid() const {
