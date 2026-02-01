@@ -119,7 +119,7 @@ body{padding:10px}
 <div class="sensor-description">Температура конденсации водяного пара</div>
 </div>
 <div class="card sensor-card heatindex-card">
-<div class="sensor-header"><div class="sensor-label">🌡️ Ощущаемая</div></div>
+<div class="sensor-header"><div class="sensor-label">🌡️ Ощущаемая температура</div></div>
 <div class="sensor-value"><span id="heatIndex">--</span><span class="sensor-unit" id="heatIndexUnit">°C</span></div>
 <div class="sensor-description">Восприятие температуры с учётом влажности</div>
 </div>
@@ -154,7 +154,7 @@ body{padding:10px}
 <div class="update-time">Обновлено: <span id="updateTimeHumid">--</span></div>
 </div>
 <div class="card chart-card">
-<h3 style="margin-bottom:15px;color:#333">🔥 Ощущаемая</h3>
+<h3 style="margin-bottom:15px;color:#333">🔥 Ощущаемая температура</h3>
 <canvas id="heatChart"></canvas>
 <div class="update-time">Обновлено: <span id="updateTimeHeat">--</span></div>
 </div>
@@ -169,7 +169,7 @@ T=new Chart(tc,{type:'line',data:{labels:D.labels,datasets:[{label:'Темпер
 const hc=document.getElementById('humidChart').getContext('2d');
 H=new Chart(hc,{type:'line',data:{labels:D.labels,datasets:[{label:'Влажность (%)',data:D.humid,borderColor:'#4facfe',backgroundColor:'rgba(79,172,254,.15)',tension:.4,fill:!0,borderWidth:3,pointRadius:0,pointHoverRadius:7,pointHoverBackgroundColor:'#4facfe',pointHoverBorderColor:'white',pointHoverBorderWidth:3}]},options:{...O,plugins:{...O.plugins,tooltip:{...O.plugins.tooltip,borderColor:'#4facfe'}},scales:{...O.scales,y:{...O.scales.y,title:{display:!0,text:'Влажность (%)',font:{size:13,weight:'bold'},color:'#4facfe'},grid:{...O.scales.y.grid,color:'rgba(79,172,254,.1)'},ticks:{...O.scales.y.ticks,color:'#4facfe'}}}}});
 const ec=document.getElementById('heatChart').getContext('2d');
-E=new Chart(ec,{type:'line',data:{labels:D.labels,datasets:[{label:'Ощущаемая (°C)',data:D.heat,borderColor:'#fa709a',backgroundColor:'rgba(250,112,154,.15)',tension:.4,fill:!0,borderWidth:3,pointRadius:0,pointHoverRadius:7,pointHoverBackgroundColor:'#fa709a',pointHoverBorderColor:'white',pointHoverBorderWidth:3}]},options:{...O,plugins:{...O.plugins,tooltip:{...O.plugins.tooltip,borderColor:'#fa709a'}},scales:{...O.scales,y:{...O.scales.y,title:{display:!0,text:'Ощущаемая (°C)',font:{size:13,weight:'bold'},color:'#fa709a'},grid:{...O.scales.y.grid,color:'rgba(250,112,154,.1)'},ticks:{...O.scales.y.ticks,color:'#fa709a'}}}}});
+E=new Chart(ec,{type:'line',data:{labels:D.labels,datasets:[{label:'Ощущаемая температура (°C)',data:D.heat,borderColor:'#fa709a',backgroundColor:'rgba(250,112,154,.15)',tension:.4,fill:!0,borderWidth:3,pointRadius:0,pointHoverRadius:7,pointHoverBackgroundColor:'#fa709a',pointHoverBorderColor:'white',pointHoverBorderWidth:3}]},options:{...O,plugins:{...O.plugins,tooltip:{...O.plugins.tooltip,borderColor:'#fa709a'}},scales:{...O.scales,y:{...O.scales.y,title:{display:!0,text:'Ощущаемая температура(°C)',font:{size:13,weight:'bold'},color:'#fa709a'},grid:{...O.scales.y.grid,color:'rgba(250,112,154,.1)'},ticks:{...O.scales.y.ticks,color:'#fa709a'}}}}});
 }
 function c2f(c){return c*9/5+32}
 function toggleUnit(){F=!F;updateDisplay()}
@@ -177,8 +177,8 @@ function updateDisplay(){
 document.querySelectorAll('#tempUnit,#minTempUnit,#maxTempUnit,#avgTempUnit,#dewPointUnit,#heatIndexUnit').forEach(e=>e.textContent=F?'°F':'°C');
 T.data.datasets[0].label=F?'Температура (°F)':'Температура (°C)';
 T.options.scales.y.title.text=F?'Температура (°F)':'Температура (°C)';
-E.data.datasets[0].label=F?'Ощущаемая (°F)':'Ощущаемая (°C)';
-E.options.scales.y.title.text=F?'Ощущаемая (°F)':'Ощущаемая (°C)';
+E.data.datasets[0].label=F?'Ощущаемая температура(°F)':'Ощущаемая температура(°C)';
+E.options.scales.y.title.text=F?'Ощущаемая температура(°F)':'Ощущаемая температура(°C)';
 T.update('none');E.update('none');updateData();
 }
 function getComfort(v,isTemp){
@@ -247,7 +247,7 @@ document.getElementById('updateTimeHeat').textContent=ts;
 function resetMinMax(){if(confirm('Сбросить min/max?')){fetch('/reset').then(r=>r.json()).then(d=>{alert(d.message||'Сброшено');updateData();}).catch(e=>alert('Ошибка'));}}
 function rebootDevice(){if(confirm('⚠️ Перезагрузить устройство?')){fetch('/reboot').then(()=>{alert('Перезагрузка...');clearInterval(iU);clearInterval(iS);clearInterval(iH);setTimeout(()=>location.reload(),10000);}).catch(e=>console.error(e));}}
 function exportCSV(){
-let csv='Время,Температура,Влажность,Ощущаемая\n';
+let csv='Время,Температура,Влажность,Ощущаемая температура\n';
 for(let i=0;i<D.labels.length;i++)csv+=`${D.labels[i]},${D.temp[i]},${D.humid[i]},${D.heat[i]}\n`;
 const b=new Blob([csv],{type:'text/csv'});const u=URL.createObjectURL(b);const a=document.createElement('a');
 a.href=u;a.download=`esp32_${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(u);
