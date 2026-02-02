@@ -7,7 +7,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ESP32 Метеостанция</title>
+<title>EnvStats</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -83,7 +83,7 @@ body{padding:10px}
 <body>
 <div class="container">
 <div class="header">
-<h1>🌡️ ESP32 Метеостанция</h1>
+<h1>🌡️ Environmental Statistics</h1>
 <div class="subtitle">Мониторинг температуры и влажности</div>
 <div class="status-container">
 <div id="statusBadge" class="status online"><div class="status-dot"></div><span>Подключено</span></div>
@@ -93,7 +93,7 @@ body{padding:10px}
 
 <div class="chart-row double">
 <div class="card sensor-card temp-card">
-<div class="sensor-header"><div class="sensor-label">🌡️ Температура</div></div>
+<div class="sensor-header"><div class="sensor-label">🌡️ Temperature</div></div>
 <div class="sensor-value"><span id="temperature">--</span><span class="sensor-unit" id="tempUnit">°C</span></div>
 <div class="minmax">
 <div><div style="font-size:10px">⬇️ Мин</div><div class="minmax-value"><span id="minTemp">--</span><span id="minTempUnit">°C</span></div></div>
@@ -108,7 +108,7 @@ body{padding:10px}
 <div id="tempComfort" class="comfort-indicator"></div>
 </div>
 <div class="card sensor-card humidity-card">
-<div class="sensor-header"><div class="sensor-label">💧 Влажность</div></div>
+<div class="sensor-header"><div class="sensor-label">💧 Humidity</div></div>
 <div class="sensor-value"><span id="humidity">--</span><span class="sensor-unit">%</span></div>
 <div class="minmax">
 <div><div style="font-size:10px">⬇️ Мин</div><div class="minmax-value"><span id="minHumid">--</span>%</div></div>
@@ -121,20 +121,20 @@ body{padding:10px}
 
 <div class="chart-row double">
 <div class="card sensor-card dewpoint-card">
-<div class="sensor-header"><div class="sensor-label">💧 Точка росы</div></div>
+<div class="sensor-header"><div class="sensor-label">💧 Dew point</div></div>
 <div class="sensor-value"><span id="dewPoint">--</span><span class="sensor-unit" id="dewPointUnit">°C</span></div>
-<div class="sensor-description">Температура конденсации водяного пара</div>
+<div class="sensor-description">Temperature конденсации водяного пара</div>
 </div>
 <div class="card sensor-card heatindex-card">
-<div class="sensor-header"><div class="sensor-label">🌡️ Ощущаемая</div></div>
+<div class="sensor-header"><div class="sensor-label">🌡️ Heat Index</div></div>
 <div class="sensor-value"><span id="heatIndex">--</span><span class="sensor-unit" id="heatIndexUnit">°C</span></div>
-<div class="sensor-description">Восприятие температуры с учётом влажности</div>
+<div class="sensor-description">Temperature perception based on humidity</div>
 </div>
 </div>
 
 <div class="chart-row double">
 <div class="card">
-<h3 style="margin-bottom:15px;color:#333">⚙️ Управление</h3>
+<h3 style="margin-bottom:15px;color:#333">⚙️ System</h3>
 <div class="buttons">
 <button class="btn btn-primary" onclick="exportCSV()">📥 CSV</button>
 <button class="btn btn-success" onclick="exportJSON()">📋 JSON</button>
@@ -157,27 +157,27 @@ body{padding:10px}
 
 <div class="chart-row double">
 <div class="chart-card">
-<h3 style="margin-bottom:15px;color:#333">🌡️ Температура</h3>
+<h3 style="margin-bottom:15px;color:#333">🌡️ Temperature</h3>
 <canvas id="tempChart"></canvas>
-<div class="update-time">Обновлено: <span id="updateTimeTemp">--</span></div>
+<div class="update-time">Updated: <span id="updateTimeTemp">--</span></div>
 </div>
 <div class="chart-card">
-<h3 style="margin-bottom:15px;color:#333">💧 Влажность</h3>
+<h3 style="margin-bottom:15px;color:#333">💧 Humidity</h3>
 <canvas id="humidChart"></canvas>
-<div class="update-time">Обновлено: <span id="updateTimeHumid">--</span></div>
+<div class="update-time">Updated: <span id="updateTimeHumid">--</span></div>
 </div>
 </div>
 
 <div class="chart-row double">
 <div class="chart-card">
-<h3 style="margin-bottom:15px;color:#333">🌡️ Ощущаемая</h3>
+<h3 style="margin-bottom:15px;color:#333">🌡️ Heat Index</h3>
 <canvas id="heatChart"></canvas>
-<div class="update-time">Обновлено: <span id="updateTimeHeat">--</span></div>
+<div class="update-time">Updated: <span id="updateTimeHeat">--</span></div>
 </div>
 <div class="chart-card">
-<h3 style="margin-bottom:15px;color:#333">💧 Точка росы</h3>
+<h3 style="margin-bottom:15px;color:#333">💧 Dew point</h3>
 <canvas id="dewChart"></canvas>
-<div class="update-time">Обновлено: <span id="updateTimeDew">--</span></div>
+<div class="update-time">Updated: <span id="updateTimeDew">--</span></div>
 </div>
 </div>
 
@@ -189,16 +189,16 @@ const O={responsive:!0,maintainAspectRatio:!1,interaction:{mode:'index',intersec
 
 function initCharts(){
 const tc=document.getElementById('tempChart').getContext('2d');
-T=new Chart(tc,{type:'line',data:{labels:D.labels,datasets:[{label:'Температура (°C)',data:D.temp,borderColor:'#667eea',backgroundColor:'rgba(102,126,234,.15)',tension:.4,fill:!0,borderWidth:5,pointRadius:4}]},options:{...O,scales:{...O.scales,y:{...O.scales.y,position:'right',title:{display:!0,text:'°C'}}}}});
+T=new Chart(tc,{type:'line',data:{labels:D.labels,datasets:[{label:'Temperature (°C)',data:D.temp,borderColor:'#667eea',backgroundColor:'rgba(102,126,234,.15)',tension:.4,fill:!0,borderWidth:5,pointRadius:4}]},options:{...O,scales:{...O.scales,y:{...O.scales.y,position:'right',title:{display:!0,text:'°C'}}}}});
 
 const hc=document.getElementById('humidChart').getContext('2d');
-H=new Chart(hc,{type:'line',data:{labels:D.labels,datasets:[{label:'Влажность (%)',data:D.humid,borderColor:'#4facfe',backgroundColor:'rgba(79,172,254,.15)',tension:.4,fill:!0,borderWidth:5,pointRadius:4}]},options:{...O,scales:{...O.scales,y:{...O.scales.y,position:'right',title:{display:!0,text:'%'}}}}});
+H=new Chart(hc,{type:'line',data:{labels:D.labels,datasets:[{label:'Humidity (%)',data:D.humid,borderColor:'#4facfe',backgroundColor:'rgba(79,172,254,.15)',tension:.4,fill:!0,borderWidth:5,pointRadius:4}]},options:{...O,scales:{...O.scales,y:{...O.scales.y,position:'right',title:{display:!0,text:'%'}}}}});
 
 const ec=document.getElementById('heatChart').getContext('2d');
-E=new Chart(ec,{type:'line',data:{labels:D.labels,datasets:[{label:'Ощущаемая (°C)',data:D.heat,borderColor:'#fa709a',backgroundColor:'rgba(250,112,154,.15)',tension:.4,fill:!0,borderWidth:5,pointRadius:4}]},options:{...O,scales:{...O.scales,y:{...O.scales.y,position:'right',title:{display:!0,text:'°C'}}}}});
+E=new Chart(ec,{type:'line',data:{labels:D.labels,datasets:[{label:'Heat Index (°C)',data:D.heat,borderColor:'#fa709a',backgroundColor:'rgba(250,112,154,.15)',tension:.4,fill:!0,borderWidth:5,pointRadius:4}]},options:{...O,scales:{...O.scales,y:{...O.scales.y,position:'right',title:{display:!0,text:'°C'}}}}});
 
 const dc=document.getElementById('dewChart').getContext('2d');
-W=new Chart(dc,{type:'line',data:{labels:D.labels,datasets:[{label:'Точка росы (°C)',data:D.dew,borderColor:'#f093fb',backgroundColor:'rgba(240,147,251,.15)',tension:.4,fill:!0,borderWidth:5,pointRadius:4}]},options:{...O,scales:{...O.scales,y:{...O.scales.y,position:'right',title:{display:!0,text:'°C'}}}}});
+W=new Chart(dc,{type:'line',data:{labels:D.labels,datasets:[{label:'Dew point (°C)',data:D.dew,borderColor:'#f093fb',backgroundColor:'rgba(240,147,251,.15)',tension:.4,fill:!0,borderWidth:5,pointRadius:4}]},options:{...O,scales:{...O.scales,y:{...O.scales.y,position:'right',title:{display:!0,text:'°C'}}}}});
 }
 
 function c2f(c){return c*9/5+32}
@@ -214,12 +214,12 @@ T.update();E.update();W.update();updateData();
 
 function getComfort(v,isTemp){
 if(isTemp){
-if(v>=20&&v<=24)return{l:'excellent',t:'✅ Оптимально'};
-if(v>=18&&v<=26)return{l:'good',t:'👍 Комфортно'};
-return{l:'poor',t:'❌ Некомфортно'};
+if(v>=20&&v<=24)return{l:'excellent',t:'✅ Optimal'};
+if(v>=18&&v<=26)return{l:'good',t:'👍 Comfortable'};
+return{l:'poor',t:'❌ Uncomfortable'};
 }else{
-if(v>=40&&v<=60)return{l:'excellent',t:'✅ Оптимально'};
-return{l:'good',t:'👍 Нормально'};
+if(v>=40&&v<=60)return{l:'excellent',t:'✅ Optimal'};
+return{l:'good',t:'👍 Normal'};
 }
 }
 
