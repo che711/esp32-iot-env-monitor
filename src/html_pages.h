@@ -7,7 +7,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EnvStats</title>
+<title>🌡️ EnvStats</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -83,10 +83,10 @@ body{padding:10px}
 <div class="container">
 <div class="header">
 <h1>🌡️ Environmental Statistics</h1>
-<div class="subtitle">Мониторинг температуры и влажности</div>
+<div class="subtitle">Temperature and humidity monitoring</div>
 <div class="status-container">
-<div id="statusBadge" class="status online"><div class="status-dot"></div><span>Подключено</span></div>
-<div class="status" style="background:#e3f2fd;color:#1976d2"><span id="lastUpdate">Загрузка...</span></div>
+<div id="statusBadge" class="status online"><div class="status-dot"></div><span>Connected</span></div>
+<div class="status" style="background:#e3f2fd;color:#1976d2"><span id="lastUpdate">Loading...</span></div>
 </div>
 </div>
 
@@ -95,9 +95,9 @@ body{padding:10px}
 <div class="sensor-header"><div class="sensor-label">🌡️ Temperature</div></div>
 <div class="sensor-value"><span id="temperature">--</span><span class="sensor-unit" id="tempUnit">°C</span></div>
 <div class="minmax">
-<div><div style="font-size:10px">⬇️ Мин</div><div class="minmax-value"><span id="minTemp">--</span><span id="minTempUnit">°C</span></div></div>
+<div><div style="font-size:10px">⬇️ Mim</div><div class="minmax-value"><span id="minTemp">--</span><span id="minTempUnit">°C</span></div></div>
 <div class="avg-value">📊 <span id="avgTemp">--</span><span id="avgTempUnit">°C</span></div>
-<div><div style="font-size:10px">⬆️ Макс</div><div class="minmax-value"><span id="maxTemp">--</span><span id="maxTempUnit">°C</span></div></div>
+<div><div style="font-size:10px">⬆️ Max</div><div class="minmax-value"><span id="maxTemp">--</span><span id="maxTempUnit">°C</span></div></div>
 </div>
 <div class="temp-unit-toggle">
 <span class="toggle-label">°C</span>
@@ -110,9 +110,9 @@ body{padding:10px}
 <div class="sensor-header"><div class="sensor-label">💧 Humidity</div></div>
 <div class="sensor-value"><span id="humidity">--</span><span class="sensor-unit">%</span></div>
 <div class="minmax">
-<div><div style="font-size:10px">⬇️ Мин</div><div class="minmax-value"><span id="minHumid">--</span>%</div></div>
+<div><div style="font-size:10px">⬇️ Min</div><div class="minmax-value"><span id="minHumid">--</span>%</div></div>
 <div class="avg-value">📊 <span id="avgHumid">--</span>%</div>
-<div><div style="font-size:10px">⬆️ Макс</div><div class="minmax-value"><span id="maxHumid">--</span>%</div></div>
+<div><div style="font-size:10px">⬆️ Max</div><div class="minmax-value"><span id="maxHumid">--</span>%</div></div>
 </div>
 <div id="humidComfort" class="comfort-indicator"></div>
 </div>
@@ -122,12 +122,12 @@ body{padding:10px}
 <div class="card sensor-card dewpoint-card">
 <div class="sensor-header"><div class="sensor-label">💧 Dew point</div></div>
 <div class="sensor-value"><span id="dewPoint">--</span><span class="sensor-unit" id="dewPointUnit">°C</span></div>
-<div class="sensor-description">Температура конденсации водяного пара</div>
+<div class="sensor-description">Condensation temperature of water vapor</div>
 </div>
 <div class="card sensor-card heatindex-card">
 <div class="sensor-header"><div class="sensor-label">🌡️ Heat Index</div></div>
 <div class="sensor-value"><span id="heatIndex">--</span><span class="sensor-unit" id="heatIndexUnit">°C</span></div>
-<div class="sensor-description">Восприятие температуры с учётом влажности</div>
+<div class="sensor-description">Temperature perception based on humidity</div>
 </div>
 </div>
 
@@ -145,8 +145,8 @@ body{padding:10px}
 <div class="buttons">
 <button class="btn btn-primary" onclick="exportCSV()">📥 CSV</button>
 <button class="btn btn-success" onclick="exportJSON()">📋 JSON</button>
-<button class="btn btn-success" onclick="resetMinMax()">🔄 Сброс</button>
-<button class="btn btn-danger" onclick="rebootDevice()">⚡ Перезагрузка</button>
+<button class="btn btn-success" onclick="resetMinMax()">🔄 Reset MIN/MAX</button>
+<button class="btn btn-danger" onclick="rebootDevice()">⚡ Reboot</button>
 </div>
 </div>
 </div>
@@ -214,14 +214,16 @@ W.options.scales.y.title.text=F?'°F':'°C';
 T.update();E.update();W.update();updateData();
 }
 
-function getComfort(v,isTemp){
-if(isTemp){
-if(v>=20&&v<=24)return{l:'excellent',t:'✅ Optimal'};
-if(v>=18&&v<=26)return{l:'good',t:'👍 Comfortable'};
-return{l:'poor',t:'❌ Uncomfortable'};
-}else{
-if(v>=40&&v<=60)return{l:'excellent',t:'✅ Optimal'};
-return{l:'good',t:'👍 Normal'};
+function getComfort(v, isTemp) {
+if (isTemp) {
+if (v >= 20 && v <= 24) return { l: 'excellent', t: '✅ Optimal' };
+if (v >= 18 && v <= 26) return { l: 'good', t: '👍 Comfortable' };
+return { l: 'poor', t: '❌ Uncomfortable' };
+} else {
+// Улучшенная логика влажности
+if (v >= 40 && v <= 60) return { l: 'excellent', t: '✅ Optimal' };
+if (v >= 30 && v <= 70) return { l: 'good', t: '👍 Normal' };
+return { l: 'poor', t: '❌ Uncomfortable' };
 }
 }
 
@@ -241,10 +243,10 @@ document.getElementById('heatIndex').textContent=heatI.toFixed(1);
 const tc=getComfort(d.temperature,!0),hc=getComfort(d.humidity,!1);
 const te=document.getElementById('tempComfort');te.textContent=tc.t;te.className='comfort-indicator comfort-'+tc.l;
 const he=document.getElementById('humidComfort');he.textContent=hc.t;he.className='comfort-indicator comfort-'+hc.l;
-document.getElementById('lastUpdate').textContent='Обновлено: '+new Date().toLocaleTimeString('ru-RU');
+document.getElementById('lastUpdate').textContent='Updated: '+new Date().toLocaleTimeString('ru-RU');
 errCnt=0;document.getElementById('statusBadge').className='status online';
-document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Подключено</span>';
-}).catch(e=>{errCnt++;if(errCnt>2){document.getElementById('statusBadge').className='status offline';document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Нет связи</span>';}});
+document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Connected</span>';
+}).catch(e=>{errCnt++;if(errCnt>2){document.getElementById('statusBadge').className='status offline';document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Disconnected</span>';}});
 }
 
 function updateStats(){
