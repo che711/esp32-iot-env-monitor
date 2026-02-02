@@ -5,27 +5,27 @@
 #include "web_server.h"
 
 // ============================================
-// Глобальные переменные
+// Global variables
 // ============================================
 float g_cpuUsage = 0.0;
 
-// Объекты
+// Objects
 WiFiManager wifiManager(WIFI_SSID, WIFI_PASSWORD);
 SensorManager sensorManager;
 WeatherWebServer webServer(&sensorManager, &wifiManager);
 
-// Таймеры
+// Timers
 unsigned long lastSensorRead = 0;
 unsigned long lastWiFiCheck = 0;
 unsigned long lastStatsUpdate = 0;
 
-// CPU мониторинг
+// CPU monitoring
 unsigned long lastCpuCheck = 0;
 unsigned long idleTime = 0;
 unsigned long busyTime = 0;
 
 // ============================================
-// Функции
+// Functions
 // ============================================
 
 void printSystemInfo() {
@@ -35,7 +35,7 @@ void printSystemInfo() {
     Serial.println("╚════════════════════════════════════════╝");
     Serial.println();
     
-    Serial.println("=== Информация о системе ===");
+    Serial.println("=== System information ===");
     Serial.printf("Chip Model:     %s\n", ESP.getChipModel());
     Serial.printf("Chip Revision:  %d\n", ESP.getChipRevision());
     Serial.printf("CPU Frequency:  %d MHz\n", ESP.getCpuFreqMHz());
@@ -54,12 +54,12 @@ void updateCPUUsage() {
         if (totalTime > 0) {
             g_cpuUsage = (float)busyTime / totalTime * 100.0;
             
-            // Ограничиваем значение
+            // Limiting value
             if (g_cpuUsage > 100.0) g_cpuUsage = 100.0;
             if (g_cpuUsage < 0.0) g_cpuUsage = 0.0;
         }
         
-        // Сброс счётчиков
+        // Resetting counters
         busyTime = 0;
         idleTime = 0;
         lastCpuCheck = currentMillis;
@@ -70,17 +70,17 @@ void printStatus() {
     static unsigned long lastPrint = 0;
     unsigned long currentMillis = millis();
     
-    // Печатаем статус раз в 30 секунд
+    // Print the status once in 30 sec
     if (currentMillis - lastPrint >= 30000) {
         lastPrint = currentMillis;
         
-        Serial.println("\n=== Статус системы ===");
-        Serial.printf("Uptime:         %lu сек\n", millis() / 1000);
+        Serial.println("\n=== System status ===");
+        Serial.printf("Uptime:         %lu sec\n", millis() / 1000);
         Serial.printf("WiFi:           %s (%d dBm)\n", 
-                     wifiManager.isConnected() ? "✓ Подключен" : "✗ Отключен",
+                     wifiManager.isConnected() ? "✓ Connected" : "✗ Disconnected",
                      wifiManager.getRSSI());
-        Serial.printf("Температура:    %.1f°C\n", sensorManager.getTemperature());
-        Serial.printf("Влажность:      %.1f%%\n", sensorManager.getHumidity());
+        Serial.printf("Temperature:    %.1f°C\n", sensorManager.getTemperature());
+        Serial.printf("Humidity:      %.1f%%\n", sensorManager.getHumidity());
         Serial.printf("CPU Usage:      %.1f%%\n", g_cpuUsage);
         Serial.printf("Free Heap:      %d KB\n", ESP.getFreeHeap() / 1024);
         Serial.printf("Web Requests:   %lu\n", webServer.getRequestCount());
@@ -96,51 +96,51 @@ void setup() {
     Serial.begin(SERIAL_BAUD);
     delay(1000);
     
-    // Вывод информации о системе
+    // Output of information about the system
     printSystemInfo();
     
     // Инициализация датчика
     Serial.println("=== Инициализация датчика ===");
     if (!sensorManager.begin()) {
         Serial.println("\n╔════════════════════════════════════════╗");
-        Serial.println("║      КРИТИЧЕСКАЯ ОШИБКА!              ║");
-        Serial.println("║   Датчик AHT10 не обнаружен!         ║");
+        Serial.println("║           CRITICAL ERROR!                ║");
+        Serial.println("║          AHT10  is not detected!         ║");
         Serial.println("╚════════════════════════════════════════╝");
         Serial.println();
-        Serial.println("Возможные причины:");
-        Serial.println("  1. Неправильное подключение I2C");
-        Serial.println("  2. Поврежденный датчик");
-        Serial.println("  3. Неправильные GPIO пины в config.h");
+        Serial.println("Possible reasons:");
+        Serial.println("  1. Incorrect I2C connection");
+        Serial.println("  2. Damaged sens");
+        Serial.println("  3. Incorrect GPIO pins in config.h");
         Serial.println();
-        Serial.println("Проверьте подключение и перезагрузите устройство");
+        Serial.println("Check the connection and restart the device");
         Serial.println();
         
-        // Мигаем встроенным светодиодом для индикации ошибки
+        // Blink the built-in LED to indicate an error
         while (1) {
             delay(250);
         }
     }
     
     // Подключение к WiFi
-    Serial.println("=== Подключение к WiFi ===");
+    Serial.println("=== Connecting to WiFi ===");
     if (!wifiManager.begin()) {
-        Serial.println("✗ Не удалось подключиться к WiFi");
-        Serial.println("  Продолжаем работу в автономном режиме");
-        Serial.println("  Веб-интерфейс недоступен");
+        Serial.println("✗ Cannot connect to WiFi");
+        Serial.println("  Keep working offline.");
+        Serial.println("  The web interface is unavailable");
     }
     
     // Запуск веб-сервера
-    Serial.println("=== Запуск веб-сервера ===");
+    Serial.println("=== Launching the web server ===");
     webServer.begin();
     
     // Финальное сообщение
     Serial.println("╔════════════════════════════════════════╗");
-    Serial.println("║    ✓ СИСТЕМА ГОТОВА К РАБОТЕ!        ║");
+    Serial.println("║ ✓Atmospheric Monitor is ready to work! ║");
     Serial.println("╚════════════════════════════════════════╝");
     Serial.println();
     
     if (wifiManager.isConnected()) {
-        Serial.println("Доступ к веб-интерфейсу:");
+        Serial.println("Access to the web interface:");
         Serial.printf("  http://%s/\n", wifiManager.getIP().c_str());
         Serial.println();
     }
@@ -170,21 +170,21 @@ void loop() {
         lastSensorRead = currentMillis;
         
         if (!sensorManager.update()) {
-            Serial.println("✗ Ошибка чтения датчика");
+            Serial.println("✗ Sensor reading error");
         }
     }
     
-    // Обновление статистики CPU
+    // Update CPU stats
     updateCPUUsage();
     
-    // Печать статуса
+    // Print stats
     printStatus();
     
-    // Расчет времени выполнения цикла
+    // Calculation of the cycle execution time
     unsigned long loopEnd = micros();
     busyTime += (loopEnd - loopStart);
     
-    // Небольшая задержка для экономии CPU
+    // Simple delay
     delay(10);
-    idleTime += 10000; // 10ms в микросекундах
+    idleTime += 10000; // 10ms
 }
