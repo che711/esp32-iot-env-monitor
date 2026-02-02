@@ -12,7 +12,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
-.container{max-width:1400px;margin:0 auto}
+.container{max-width:700px;margin:0 auto}
 .header{background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border-radius:20px;padding:30px;margin-bottom:20px;box-shadow:0 10px 30px rgba(0,0,0,.2);text-align:center}
 .header h1{color:#333;font-size:clamp(24px,5vw,36px);margin-bottom:10px;font-weight:700}
 .subtitle{color:#666;font-size:14px;margin-bottom:15px}
@@ -23,7 +23,6 @@ body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#667eea
 .status-dot{width:8px;height:8px;border-radius:50%;animation:pulse 2s infinite}
 .status.online .status-dot{background:#28a745}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-bottom:20px}
 .card{background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border-radius:12px;padding:25px;box-shadow:0 4px 16px rgba(0,0,0,.15);transition:.3s}
 .card:hover{transform:translateY(-3px);box-shadow:0 10px 30px rgba(0,0,0,.2)}
 .sensor-card{color:#fff;position:relative;overflow:hidden}
@@ -45,8 +44,10 @@ body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#667eea
 .info-item{background:#f8f9fa;padding:15px;border-radius:8px;border-left:4px solid #667eea}
 .info-label{color:#666;font-size:11px;text-transform:uppercase;margin-bottom:8px}
 .info-value{color:#333;font-weight:700;font-size:clamp(14px,3vw,18px)}
-.chart-card{grid-column:1/-1}
-canvas{max-height:350px}
+.chart-row{display:grid;grid-template-columns:1fr;gap:20px;margin-bottom:20px}
+.chart-card{background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border-radius:12px;padding:25px;box-shadow:0 4px 16px rgba(0,0,0,.15);transition:.3s}
+.chart-card:hover{transform:translateY(-3px);box-shadow:0 10px 30px rgba(0,0,0,.2)}
+canvas{max-height:350px;min-height:250px;width:100%}
 .buttons{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:15px}
 .btn{padding:12px 20px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;transition:.3s}
 .btn-primary{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff}
@@ -67,10 +68,12 @@ input:checked+.slider:before{transform:translateX(30px)}
 .comfort-good{background:rgba(255,193,7,.3)}
 .comfort-fair{background:rgba(255,152,0,.3)}
 .comfort-poor{background:rgba(220,53,69,.3)}
+@media(min-width:769px){
+.chart-row.double{grid-template-columns:1fr 1fr}
+}
 @media(max-width:768px){
 body{padding:10px}
 .header{padding:20px}
-.grid{grid-template-columns:1fr;gap:15px}
 .card{padding:20px}
 .info-grid{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
 .buttons{grid-template-columns:1fr}
@@ -87,7 +90,8 @@ body{padding:10px}
 <div class="status" style="background:#e3f2fd;color:#1976d2"><span id="lastUpdate">Загрузка...</span></div>
 </div>
 </div>
-<div class="grid">
+
+<div class="chart-row double">
 <div class="card sensor-card temp-card">
 <div class="sensor-header"><div class="sensor-label">🌡️ Температура</div></div>
 <div class="sensor-value"><span id="temperature">--</span><span class="sensor-unit" id="tempUnit">°C</span></div>
@@ -113,6 +117,9 @@ body{padding:10px}
 </div>
 <div id="humidComfort" class="comfort-indicator"></div>
 </div>
+</div>
+
+<div class="chart-row double">
 <div class="card sensor-card dewpoint-card">
 <div class="sensor-header"><div class="sensor-label">💧 Точка росы</div></div>
 <div class="sensor-value"><span id="dewPoint">--</span><span class="sensor-unit" id="dewPointUnit">°C</span></div>
@@ -123,6 +130,9 @@ body{padding:10px}
 <div class="sensor-value"><span id="heatIndex">--</span><span class="sensor-unit" id="heatIndexUnit">°C</span></div>
 <div class="sensor-description">Восприятие температуры с учётом влажности</div>
 </div>
+</div>
+
+<div class="chart-row double">
 <div class="card">
 <h3 style="margin-bottom:15px;color:#333">⚙️ Управление</h3>
 <div class="buttons">
@@ -132,7 +142,7 @@ body{padding:10px}
 <button class="btn btn-danger" onclick="rebootDevice()">⚡ Перезагрузка</button>
 </div>
 </div>
-<div class="card" style="grid-column:span 3">
+<div class="card">
 <h3 style="margin-bottom:15px;color:#333">💻 Система</h3>
 <div class="info-grid">
 <div class="info-item"><div class="info-label">⏱️ Время</div><div class="info-value" id="uptime">--</div></div>
@@ -143,57 +153,76 @@ body{padding:10px}
 <div class="info-item"><div class="info-label">🌐 IP</div><div class="info-value" id="ipAddr" style="font-size:11px">--</div></div>
 </div>
 </div>
-<div class="card chart-card">
+</div>
+
+<div class="chart-row double">
+<div class="chart-card">
 <h3 style="margin-bottom:15px;color:#333">🌡️ Температура</h3>
 <canvas id="tempChart"></canvas>
 <div class="update-time">Обновлено: <span id="updateTimeTemp">--</span></div>
 </div>
-<div class="card chart-card">
+<div class="chart-card">
 <h3 style="margin-bottom:15px;color:#333">💧 Влажность</h3>
 <canvas id="humidChart"></canvas>
 <div class="update-time">Обновлено: <span id="updateTimeHumid">--</span></div>
 </div>
-<div class="card chart-card">
-<h3 style="margin-bottom:15px;color:#333">🔥 Ощущаемая</h3>
+</div>
+
+<div class="chart-row double">
+<div class="chart-card">
+<h3 style="margin-bottom:15px;color:#333">🌡️ Ощущаемая</h3>
 <canvas id="heatChart"></canvas>
 <div class="update-time">Обновлено: <span id="updateTimeHeat">--</span></div>
 </div>
+<div class="chart-card">
+<h3 style="margin-bottom:15px;color:#333">💧 Точка росы</h3>
+<canvas id="dewChart"></canvas>
+<div class="update-time">Обновлено: <span id="updateTimeDew">--</span></div>
 </div>
 </div>
+
+</div>
+
 <script>
-let F=false,D={labels:[],temp:[],humid:[],heat:[]},T,H,E,errCnt=0,iU,iS,iH;
-const O={responsive:!0,maintainAspectRatio:!0,interaction:{mode:'index',intersect:!1},plugins:{legend:{display:!1},tooltip:{backgroundColor:'rgba(0,0,0,.8)',padding:15,titleFont:{size:14,weight:'bold'},bodyFont:{size:14},borderWidth:2,callbacks:{title:c=>'Время: '+c[0].label,label:c=>c.dataset.label+': '+c.parsed.y.toFixed(1)}}},scales:{x:{grid:{color:'rgba(0,0,0,.05)',drawBorder:!1},ticks:{font:{size:11},maxRotation:0,autoSkip:!0,maxTicksLimit:10}},y:{grid:{drawBorder:!1},ticks:{font:{size:12}}}},animation:{duration:750,easing:'easeInOutQuart',delay:0},transitions:{active:{animation:{duration:200}},resize:{animation:{duration:750,easing:'easeInOutQuart'}},show:{animation:{duration:750,easing:'easeOutQuart',x:{from:0,to:1}}}}};
+let F=false,D={labels:[],temp:[],humid:[],heat:[],dew:[]},T,H,E,W,errCnt=0,iU,iS,iH;
+const O={responsive:!0,maintainAspectRatio:!1,interaction:{mode:'index',intersect:!1},plugins:{legend:{display:!1},tooltip:{backgroundColor:'rgba(0,0,0,.8)',padding:15,titleFont:{size:14,weight:'bold'},bodyFont:{size:14},borderWidth:2,callbacks:{title:c=>'Время: '+c[0].label,label:c=>c.dataset.label+': '+c.parsed.y.toFixed(1)}}},scales:{x:{grid:{color:'rgba(0,0,0,.05)',drawBorder:!1},ticks:{font:{size:11},maxRotation:0,autoSkip:!0,maxTicksLimit:10}},y:{grid:{drawBorder:!1},ticks:{font:{size:12}}}},animation:{duration:750,easing:'easeInOutQuart',delay:0}};
+
 function initCharts(){
 const tc=document.getElementById('tempChart').getContext('2d');
-T=new Chart(tc,{type:'line',data:{labels:D.labels,datasets:[{label:'Температура (°C)',data:D.temp,borderColor:'#667eea',backgroundColor:'rgba(102,126,234,.15)',tension:.4,fill:!0,borderWidth:3,pointRadius:0,pointHoverRadius:7,pointHoverBackgroundColor:'#667eea',pointHoverBorderColor:'white',pointHoverBorderWidth:3}]},options:{...O,plugins:{...O.plugins,tooltip:{...O.plugins.tooltip,borderColor:'#667eea'}},scales:{...O.scales,y:{...O.scales.y,title:{display:!0,text:'Температура (°C)',font:{size:13,weight:'bold'},color:'#667eea'},grid:{...O.scales.y.grid,color:'rgba(102,126,234,.1)'},ticks:{...O.scales.y.ticks,color:'#667eea'}}}}});
+T=new Chart(tc,{type:'line',data:{labels:D.labels,datasets:[{label:'Температура (°C)',data:D.temp,borderColor:'#667eea',backgroundColor:'rgba(102,126,234,.15)',tension:.4,fill:!0,borderWidth:5,pointRadius:4}]},options:{...O,scales:{...O.scales,y:{...O.scales.y,position:'right',title:{display:!0,text:'°C'}}}}});
+
 const hc=document.getElementById('humidChart').getContext('2d');
-H=new Chart(hc,{type:'line',data:{labels:D.labels,datasets:[{label:'Влажность (%)',data:D.humid,borderColor:'#4facfe',backgroundColor:'rgba(79,172,254,.15)',tension:.4,fill:!0,borderWidth:3,pointRadius:0,pointHoverRadius:7,pointHoverBackgroundColor:'#4facfe',pointHoverBorderColor:'white',pointHoverBorderWidth:3}]},options:{...O,plugins:{...O.plugins,tooltip:{...O.plugins.tooltip,borderColor:'#4facfe'}},scales:{...O.scales,y:{...O.scales.y,title:{display:!0,text:'Влажность (%)',font:{size:13,weight:'bold'},color:'#4facfe'},grid:{...O.scales.y.grid,color:'rgba(79,172,254,.1)'},ticks:{...O.scales.y.ticks,color:'#4facfe'}}}}});
+H=new Chart(hc,{type:'line',data:{labels:D.labels,datasets:[{label:'Влажность (%)',data:D.humid,borderColor:'#4facfe',backgroundColor:'rgba(79,172,254,.15)',tension:.4,fill:!0,borderWidth:5,pointRadius:4}]},options:{...O,scales:{...O.scales,y:{...O.scales.y,position:'right',title:{display:!0,text:'%'}}}}});
+
 const ec=document.getElementById('heatChart').getContext('2d');
-E=new Chart(ec,{type:'line',data:{labels:D.labels,datasets:[{label:'Ощущаемая (°C)',data:D.heat,borderColor:'#fa709a',backgroundColor:'rgba(250,112,154,.15)',tension:.4,fill:!0,borderWidth:3,pointRadius:0,pointHoverRadius:7,pointHoverBackgroundColor:'#fa709a',pointHoverBorderColor:'white',pointHoverBorderWidth:3}]},options:{...O,plugins:{...O.plugins,tooltip:{...O.plugins.tooltip,borderColor:'#fa709a'}},scales:{...O.scales,y:{...O.scales.y,title:{display:!0,text:'Ощущаемая (°C)',font:{size:13,weight:'bold'},color:'#fa709a'},grid:{...O.scales.y.grid,color:'rgba(250,112,154,.1)'},ticks:{...O.scales.y.ticks,color:'#fa709a'}}}}});
+E=new Chart(ec,{type:'line',data:{labels:D.labels,datasets:[{label:'Ощущаемая (°C)',data:D.heat,borderColor:'#fa709a',backgroundColor:'rgba(250,112,154,.15)',tension:.4,fill:!0,borderWidth:5,pointRadius:4}]},options:{...O,scales:{...O.scales,y:{...O.scales.y,position:'right',title:{display:!0,text:'°C'}}}}});
+
+const dc=document.getElementById('dewChart').getContext('2d');
+W=new Chart(dc,{type:'line',data:{labels:D.labels,datasets:[{label:'Точка росы (°C)',data:D.dew,borderColor:'#f093fb',backgroundColor:'rgba(240,147,251,.15)',tension:.4,fill:!0,borderWidth:5,pointRadius:4}]},options:{...O,scales:{...O.scales,y:{...O.scales.y,position:'right',title:{display:!0,text:'°C'}}}}});
 }
+
 function c2f(c){return c*9/5+32}
 function toggleUnit(){F=!F;updateDisplay()}
+
 function updateDisplay(){
 document.querySelectorAll('#tempUnit,#minTempUnit,#maxTempUnit,#avgTempUnit,#dewPointUnit,#heatIndexUnit').forEach(e=>e.textContent=F?'°F':'°C');
-T.data.datasets[0].label=F?'Температура (°F)':'Температура (°C)';
-T.options.scales.y.title.text=F?'Температура (°F)':'Температура (°C)';
-E.data.datasets[0].label=F?'Ощущаемая (°F)':'Ощущаемая (°C)';
-E.options.scales.y.title.text=F?'Ощущаемая (°F)':'Ощущаемая (°C)';
-T.update('none');E.update('none');updateData();
+T.options.scales.y.title.text=F?'°F':'°C';
+E.options.scales.y.title.text=F?'°F':'°C';
+W.options.scales.y.title.text=F?'°F':'°C';
+T.update();E.update();W.update();updateData();
 }
+
 function getComfort(v,isTemp){
 if(isTemp){
 if(v>=20&&v<=24)return{l:'excellent',t:'✅ Оптимально'};
 if(v>=18&&v<=26)return{l:'good',t:'👍 Комфортно'};
-if(v>=15&&v<=28)return{l:'fair',t:'⚠️ Допустимо'};
 return{l:'poor',t:'❌ Некомфортно'};
 }else{
 if(v>=40&&v<=60)return{l:'excellent',t:'✅ Оптимально'};
-if(v>=30&&v<=70)return{l:'good',t:'👍 Нормально'};
-if(v>=25&&v<=75)return{l:'fair',t:'⚠️ Допустимо'};
-return{l:'poor',t:'❌ Некомфортно'};
+return{l:'good',t:'👍 Нормально'};
 }
 }
+
 function updateData(){
 fetch('/data').then(r=>r.json()).then(d=>{
 const t=F?c2f(d.temperature):d.temperature,minT=F?c2f(d.minTemp):d.minTemp,maxT=F?c2f(d.maxTemp):d.maxTemp,avgT=F?c2f(d.avgTemp):d.avgTemp,dewP=F?c2f(d.dewPoint):d.dewPoint,heatI=F?c2f(d.heatIndex):d.heatIndex;
@@ -213,8 +242,9 @@ const he=document.getElementById('humidComfort');he.textContent=hc.t;he.classNam
 document.getElementById('lastUpdate').textContent='Обновлено: '+new Date().toLocaleTimeString('ru-RU');
 errCnt=0;document.getElementById('statusBadge').className='status online';
 document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Подключено</span>';
-}).catch(e=>{console.error(e);errCnt++;if(errCnt>2){document.getElementById('statusBadge').className='status offline';document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Нет связи</span>';}});
+}).catch(e=>{errCnt++;if(errCnt>2){document.getElementById('statusBadge').className='status offline';document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Нет связи</span>';}});
 }
+
 function updateStats(){
 fetch('/stats').then(r=>r.json()).then(d=>{
 document.getElementById('uptime').textContent=d.uptime;
@@ -223,42 +253,41 @@ document.getElementById('cpuUsage').textContent=d.cpuUsage+'%';
 document.getElementById('ssid').textContent=d.ssid||'--';
 document.getElementById('rssi').textContent=d.rssi+' dBm';
 document.getElementById('ipAddr').textContent=d.ip;
-const r=parseInt(d.rssi);document.getElementById('wifiSignal').textContent=r>-50?'📶':r>-60?'📶':r>-70?'📡':'📉';
 }).catch(e=>console.error(e));
 }
+
 function updateHistory(){
 fetch('/history').then(r=>r.json()).then(d=>{
-const pts=60;
-const si=Math.max(0,d.labels.length-pts);
+const si=Math.max(0,d.labels.length-60);
 D.labels=d.labels.slice(si);D.temp=d.temp.slice(si);D.humid=d.humid.slice(si);
-if(d.heat){D.heat=d.heat.slice(si);}else{
-D.heat=D.temp.map((t,i)=>{const h=D.humid[i];if(t<27)return t;
-return -8.78469475556+1.61139411*t+2.33854883889*h+-0.14611605*t*h+-0.012308094*t*t+-0.0164248277778*h*h+0.002211732*t*t*h+0.00072546*t*h*h+-0.000003582*t*t*h*h;});
-}
-T.data.labels=D.labels;T.data.datasets[0].data=D.temp;T.update('active');
-H.data.labels=D.labels;H.data.datasets[0].data=D.humid;H.update('active');
-E.data.labels=D.labels;E.data.datasets[0].data=D.heat;E.update('active');
+D.heat=D.temp.map((t,i)=>{const h=D.humid[i];return t+(0.55*(1-h/100)*(t-14.5));}); // Simplified Feel
+D.dew=D.temp.map((t,i)=>{const h=D.humid[i];return t-(100-h)/5;}); // Simplified Dew Point
+T.data.labels=D.labels;T.data.datasets[0].data=D.temp;T.update();
+H.data.labels=D.labels;H.data.datasets[0].data=D.humid;H.update();
+E.data.labels=D.labels;E.data.datasets[0].data=D.heat;E.update();
+W.data.labels=D.labels;W.data.datasets[0].data=D.dew;W.update();
 const ts=new Date().toLocaleTimeString('ru-RU');
-document.getElementById('updateTimeTemp').textContent=ts;
-document.getElementById('updateTimeHumid').textContent=ts;
-document.getElementById('updateTimeHeat').textContent=ts;
+['Temp','Humid','Heat','Dew'].forEach(id=>document.getElementById('updateTime'+id).textContent=ts);
 }).catch(e=>console.error(e));
 }
-function resetMinMax(){if(confirm('Сбросить min/max?')){fetch('/reset').then(r=>r.json()).then(d=>{alert(d.message||'Сброшено');updateData();}).catch(e=>alert('Ошибка'));}}
-function rebootDevice(){if(confirm('⚠️ Перезагрузить устройство?')){fetch('/reboot').then(()=>{alert('Перезагрузка...');clearInterval(iU);clearInterval(iS);clearInterval(iH);setTimeout(()=>location.reload(),10000);}).catch(e=>console.error(e));}}
+
+function resetMinMax(){if(confirm('Сбросить min/max?')){fetch('/reset').then(()=>updateData());}}
+function rebootDevice(){if(confirm('Перезагрузить?')){fetch('/reboot');}}
+
 function exportCSV(){
-let csv='Время,Температура,Влажность,Ощущаемая\n';
-for(let i=0;i<D.labels.length;i++)csv+=`${D.labels[i]},${D.temp[i]},${D.humid[i]},${D.heat[i]}\n`;
-const b=new Blob([csv],{type:'text/csv'});const u=URL.createObjectURL(b);const a=document.createElement('a');
-a.href=u;a.download=`esp32_${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(u);
+let csv='Time,Temp,Humid\n';
+for(let i=0;i<D.labels.length;i++)csv+=`${D.labels[i]},${D.temp[i]},${D.humid[i]}\n`;
+const b=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='weather.csv';a.click();
 }
+
 function exportJSON(){
-const exp={timestamp:new Date().toISOString(),device:'ESP32+AHT10',data:{labels:D.labels,temperature:D.temp,humidity:D.humid,heatIndex:D.heat},current:{temperature:parseFloat(document.getElementById('temperature').textContent),humidity:parseFloat(document.getElementById('humidity').textContent),unit:F?'F':'C'}};
-const b=new Blob([JSON.stringify(exp)],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');
-a.href=u;a.download=`esp32_${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(u);
+const b=new Blob([JSON.stringify(D)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='weather.json';a.click();
 }
-document.addEventListener('DOMContentLoaded',()=>{initCharts();updateData();updateStats();updateHistory();iU=setInterval(updateData,3000);iS=setInterval(updateStats,5000);iH=setInterval(updateHistory,3000);});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInterval(iU);clearInterval(iS);clearInterval(iH);}else{updateData();updateStats();updateHistory();iU=setInterval(updateData,3000);iS=setInterval(updateStats,5000);iH=setInterval(updateHistory,3000);}});
+
+document.addEventListener('DOMContentLoaded',()=>{
+initCharts();updateData();updateStats();updateHistory();
+iU=setInterval(updateData,3000);iS=setInterval(updateStats,5000);iH=setInterval(updateHistory,10000);
+});
 </script>
 </body>
 </html>
