@@ -45,6 +45,7 @@ body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#667eea
 .info-label{color:#666;font-size:11px;text-transform:uppercase;margin-bottom:8px}
 .info-value{color:#333;font-weight:700;font-size:clamp(14px,3vw,18px)}
 .chart-row{display:grid;grid-template-columns:1fr;gap:20px;margin-bottom:20px}
+.chart-row.double{grid-template-columns:1fr 1fr}
 .chart-card{background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border-radius:12px;padding:25px;box-shadow:0 4px 16px rgba(0,0,0,.15);transition:.3s}
 .chart-card:hover{transform:translateY(-3px);box-shadow:0 10px 30px rgba(0,0,0,.2)}
 canvas{max-height:350px;min-height:250px;width:100%}
@@ -68,15 +69,13 @@ input:checked+.slider:before{transform:translateX(30px)}
 .comfort-good{background:rgba(255,193,7,.3)}
 .comfort-fair{background:rgba(255,152,0,.3)}
 .comfort-poor{background:rgba(220,53,69,.3)}
-@media(min-width:769px){
-.chart-row.double{grid-template-columns:1fr 1fr}
-}
 @media(max-width:768px){
 body{padding:10px}
 .header{padding:20px}
 .card{padding:20px}
 .info-grid{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
 .buttons{grid-template-columns:1fr}
+.chart-row.double{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -123,27 +122,18 @@ body{padding:10px}
 <div class="card sensor-card dewpoint-card">
 <div class="sensor-header"><div class="sensor-label">💧 Dew point</div></div>
 <div class="sensor-value"><span id="dewPoint">--</span><span class="sensor-unit" id="dewPointUnit">°C</span></div>
-<div class="sensor-description">Temperature конденсации водяного пара</div>
+<div class="sensor-description">Температура конденсации водяного пара</div>
 </div>
 <div class="card sensor-card heatindex-card">
 <div class="sensor-header"><div class="sensor-label">🌡️ Heat Index</div></div>
 <div class="sensor-value"><span id="heatIndex">--</span><span class="sensor-unit" id="heatIndexUnit">°C</span></div>
-<div class="sensor-description">Temperature perception based on humidity</div>
+<div class="sensor-description">Восприятие температуры с учётом влажности</div>
 </div>
 </div>
 
-<div class="chart-row double">
+<div class="chart-row">
 <div class="card">
-<h3 style="margin-bottom:15px;color:#333">⚙️ System</h3>
-<div class="buttons">
-<button class="btn btn-primary" onclick="exportCSV()">📥 CSV</button>
-<button class="btn btn-success" onclick="exportJSON()">📋 JSON</button>
-<button class="btn btn-success" onclick="resetMinMax()">🔄 Сброс</button>
-<button class="btn btn-danger" onclick="rebootDevice()">⚡ Перезагрузка</button>
-</div>
-</div>
-<div class="card">
-<h3 style="margin-bottom:15px;color:#333">💻 Система</h3>
+<h3 style="margin-bottom:15px;color:#333">💻 System & Control</h3>
 <div class="info-grid">
 <div class="info-item"><div class="info-label">⏱️ Время</div><div class="info-value" id="uptime">--</div></div>
 <div class="info-item"><div class="info-label">🧠 RAM</div><div class="info-value" id="freeHeap">--</div></div>
@@ -152,15 +142,24 @@ body{padding:10px}
 <div class="info-item"><div class="info-label"><span id="wifiSignal">📶</span> RSSI</div><div class="info-value" id="rssi">--</div></div>
 <div class="info-item"><div class="info-label">🌐 IP</div><div class="info-value" id="ipAddr" style="font-size:11px">--</div></div>
 </div>
+<div class="buttons">
+<button class="btn btn-primary" onclick="exportCSV()">📥 CSV</button>
+<button class="btn btn-success" onclick="exportJSON()">📋 JSON</button>
+<button class="btn btn-success" onclick="resetMinMax()">🔄 Сброс</button>
+<button class="btn btn-danger" onclick="rebootDevice()">⚡ Перезагрузка</button>
+</div>
 </div>
 </div>
 
-<div class="chart-row double">
+<div class="chart-row">
 <div class="chart-card">
 <h3 style="margin-bottom:15px;color:#333">🌡️ Temperature</h3>
 <canvas id="tempChart"></canvas>
 <div class="update-time">Updated: <span id="updateTimeTemp">--</span></div>
 </div>
+</div>
+
+<div class="chart-row">
 <div class="chart-card">
 <h3 style="margin-bottom:15px;color:#333">💧 Humidity</h3>
 <canvas id="humidChart"></canvas>
@@ -168,12 +167,15 @@ body{padding:10px}
 </div>
 </div>
 
-<div class="chart-row double">
+<div class="chart-row">
 <div class="chart-card">
 <h3 style="margin-bottom:15px;color:#333">🌡️ Heat Index</h3>
 <canvas id="heatChart"></canvas>
 <div class="update-time">Updated: <span id="updateTimeHeat">--</span></div>
 </div>
+</div>
+
+<div class="chart-row">
 <div class="chart-card">
 <h3 style="margin-bottom:15px;color:#333">💧 Dew point</h3>
 <canvas id="dewChart"></canvas>
@@ -260,8 +262,8 @@ function updateHistory(){
 fetch('/history').then(r=>r.json()).then(d=>{
 const si=Math.max(0,d.labels.length-60);
 D.labels=d.labels.slice(si);D.temp=d.temp.slice(si);D.humid=d.humid.slice(si);
-D.heat=D.temp.map((t,i)=>{const h=D.humid[i];return t+(0.55*(1-h/100)*(t-14.5));}); // Simplified Feel
-D.dew=D.temp.map((t,i)=>{const h=D.humid[i];return t-(100-h)/5;}); // Simplified Dew Point
+D.heat=D.temp.map((t,i)=>{const h=D.humid[i];return t+(0.55*(1-h/100)*(t-14.5));});
+D.dew=D.temp.map((t,i)=>{const h=D.humid[i];return t-(100-h)/5.;});
 T.data.labels=D.labels;T.data.datasets[0].data=D.temp;T.update();
 H.data.labels=D.labels;H.data.datasets[0].data=D.humid;H.update();
 E.data.labels=D.labels;E.data.datasets[0].data=D.heat;E.update();
