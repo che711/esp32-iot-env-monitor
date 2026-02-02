@@ -123,29 +123,38 @@ void WeatherWebServer::handleHistory() {
     float humidHist[HISTORY_SIZE];
     
     _sensor->getHistory(tempHist, humidHist, HISTORY_SIZE);
+    int count = _sensor->getHistoryCount();  // только реальное количество записей
+    
+    // Текущее время в секундах (мы не имеем RTC, но можно взять uptime)
+    unsigned long nowSec = millis() / 1000;
     
     String json;
     json.reserve(HISTORY_BUFFER_SIZE);
     
+    // Labels — метки времени в формате HH:MM:SS относительно текущего момента
     json = "{\"labels\":[";
-    for (int i = 0; i < HISTORY_SIZE; i++) {
+    for (int i = 0; i < count; i++) {
         if (i > 0) json += ",";
-        int seconds = i * (SENSOR_INTERVAL / 1000);
-        if (seconds < 60) {
-            json += "\"" + String(seconds) + "s\"";
-        } else {
-            json += "\"" + String(seconds / 60) + "m\"";
-        }
+        // Каждая точка — это (count - 1 - i) интервалов назад от "сейчас"
+        unsigned long pointSec = nowSec - (unsigned long)(count - 1 - i) * (SENSOR_INTERVAL / 1000);
+        int h = (pointSec / 3600) % 24;
+        int m = (pointSec % 3600) / 60;
+        int s = pointSec % 60;
+        char buf[12];
+        sprintf(buf, "%02d:%02d:%02d", h, m, s);
+        json += "\"";
+        json += buf;
+        json += "\"";
     }
     
     json += "],\"temp\":[";
-    for (int i = 0; i < HISTORY_SIZE; i++) {
+    for (int i = 0; i < count; i++) {
         if (i > 0) json += ",";
         json += String(tempHist[i], 1);
     }
     
     json += "],\"humid\":[";
-    for (int i = 0; i < HISTORY_SIZE; i++) {
+    for (int i = 0; i < count; i++) {
         if (i > 0) json += ",";
         json += String(humidHist[i], 1);
     }
