@@ -9,10 +9,10 @@ float WeatherCalculations::calculateDewPoint(float temp, float humid) {
 }
 
 float WeatherCalculations::calculateHeatIndex(float temp, float humid) {
-    // Heat Index применяется только при температуре выше 27°C
+    // Heat Index is used only at temperatures above 27°C.
     if (temp < 27) return temp;
     
-    // Коэффициенты для формулы Rothfusz
+    // Coefficients for the Rothfusz formula
     float c1 = -8.78469475556;
     float c2 = 1.61139411;
     float c3 = 2.33854883889;

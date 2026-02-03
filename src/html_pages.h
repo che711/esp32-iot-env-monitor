@@ -159,7 +159,7 @@ body{padding:10px}
 <button class="btn btn-primary" onclick="exportCSV()">📥 CSV</button>
 <button class="btn btn-success" onclick="exportJSON()">📋 JSON</button>
 <button class="btn btn-success" onclick="resetMinMax()">🔄 Reset</button>
-<button class="btn btn-danger" onclick="rebootDevice()">⚡ Перезагрузка</button>
+<button class="btn btn-danger" onclick="rebootDevice()">⚡ Reboot</button>
 </div>
 </div>
 </div>

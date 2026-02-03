@@ -6,7 +6,7 @@
 // ============================================
 // WiFi Configuration
 // ============================================
-inline const char* WIFI_SSID = "network";
+inline const char* WIFI_SSID = "password";
 inline const char* WIFI_PASSWORD = "password";
 inline constexpr int WIFI_MAX_RETRY = 30;
 inline constexpr unsigned long WIFI_TIMEOUT = 15000;
