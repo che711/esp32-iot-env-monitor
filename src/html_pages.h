@@ -96,9 +96,9 @@ body{padding:10px}
 <div class="container">
 <div class="header">
 <h1>🌡️ Environmental Statistics</h1>
-<div class="subtitle">Мониторинг температуры и влажности</div>
+<div class="subtitle">Temperature and humidity monitoring</div>
 <div class="status-container">
-<div id="statusBadge" class="status online"><div class="status-dot"></div><span>Подключено</span></div>
+<div id="statusBadge" class="status online"><div class="status-dot"></div><span>Connected</span></div>
 <div class="status" style="background:#e3f2fd;color:#1976d2"><span id="lastUpdate">Загрузка...</span></div>
 </div>
 </div>
@@ -135,12 +135,12 @@ body{padding:10px}
 <div class="card sensor-card dewpoint-card">
 <div class="sensor-header"><div class="sensor-label">💧 Dew point</div></div>
 <div class="sensor-value"><span id="dewPoint">--</span><span class="sensor-unit" id="dewPointUnit">°C</span></div>
-<div class="sensor-description">Температура конденсации водяного пара</div>
+<div class="sensor-description">Condensation temperature of water vapor</div>
 </div>
 <div class="card sensor-card heatindex-card">
 <div class="sensor-header"><div class="sensor-label">🌡️ Heat Index</div></div>
 <div class="sensor-value"><span id="heatIndex">--</span><span class="sensor-unit" id="heatIndexUnit">°C</span></div>
-<div class="sensor-description">Восприятие температуры с учётом влажности</div>
+<div class="sensor-description">Temperature perception based on humidity</div>
 </div>
 </div>
 
@@ -148,7 +148,7 @@ body{padding:10px}
 <div class="card">
 <h3 style="margin-bottom:15px;color:#333">💻 System & Control</h3>
 <div class="info-grid">
-<div class="info-item"><div class="info-label">⏱️ Время</div><div class="info-value" id="uptime">--</div></div>
+<div class="info-item"><div class="info-label">⏱️ Time</div><div class="info-value" id="uptime">--</div></div>
 <div class="info-item"><div class="info-label">🧠 RAM</div><div class="info-value" id="freeHeap">--</div></div>
 <div class="info-item"><div class="info-label">📊 CPU</div><div class="info-value" id="cpuUsage">--</div></div>
 <div class="info-item"><div class="info-label">📶 SSID</div><div class="info-value" id="ssid" style="font-size:13px">--</div></div>
@@ -158,7 +158,7 @@ body{padding:10px}
 <div class="buttons">
 <button class="btn btn-primary" onclick="exportCSV()">📥 CSV</button>
 <button class="btn btn-success" onclick="exportJSON()">📋 JSON</button>
-<button class="btn btn-success" onclick="resetMinMax()">🔄 Сброс</button>
+<button class="btn btn-success" onclick="resetMinMax()">🔄 Reset</button>
 <button class="btn btn-danger" onclick="rebootDevice()">⚡ Перезагрузка</button>
 </div>
 </div>
@@ -169,7 +169,7 @@ body{padding:10px}
 <h3 style="margin-bottom:15px;color:#333">📟 Serial Monitor <span class="ws-status" id="wsStatus"></span><span id="wsStatusText" style="font-size:12px;color:#666">Подключение...</span></h3>
 <div class="log-console" id="logConsole"></div>
 <div class="buttons" style="margin-top:15px">
-<button class="btn btn-primary" onclick="clearLogs()">🗑️ Очистить</button>
+<button class="btn btn-primary" onclick="clearLogs()">🗑️ Clear</button>
 <button class="btn btn-success" onclick="toggleAutoscroll()"><span id="autoscrollIcon">📌</span> Auto-scroll</button>
 </div>
 </div>
@@ -221,7 +221,7 @@ ws=new WebSocket(wsUrl);
 
 ws.onopen=()=>{
 document.getElementById('wsStatus').className='ws-status ws-connected';
-document.getElementById('wsStatusText').textContent='Подключено';
+document.getElementById('wsStatusText').textContent='Connected';
 addLog('WebSocket connected','info');
 };
 
@@ -322,9 +322,9 @@ document.getElementById('heatIndex').textContent=heatI.toFixed(1);
 const tc=getComfort(d.temperature,!0),hc=getComfort(d.humidity,!1);
 const te=document.getElementById('tempComfort');te.textContent=tc.t;te.className='comfort-indicator comfort-'+tc.l;
 const he=document.getElementById('humidComfort');he.textContent=hc.t;he.className='comfort-indicator comfort-'+hc.l;
-document.getElementById('lastUpdate').textContent='Обновлено: '+new Date().toLocaleTimeString('ru-RU');
+document.getElementById('lastUpdate').textContent='Updated: '+new Date().toLocaleTimeString('ru-RU');
 errCnt=0;document.getElementById('statusBadge').className='status online';
-document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Подключено</span>';
+document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Connected</span>';
 }).catch(e=>{errCnt++;if(errCnt>2){document.getElementById('statusBadge').className='status offline';document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Нет связи</span>';}});
 }
 
@@ -354,8 +354,8 @@ const ts=new Date().toLocaleTimeString('ru-RU');
 }).catch(e=>console.error(e));
 }
 
-function resetMinMax(){if(confirm('Сбросить min/max?')){fetch('/reset').then(()=>updateData());}}
-function rebootDevice(){if(confirm('Перезагрузить?')){fetch('/reboot');}}
+function resetMinMax(){if(confirm('Reset min/max?')){fetch('/reset').then(()=>updateData());}}
+function rebootDevice(){if(confirm('Reboot?')){fetch('/reboot');}}
 
 function exportCSV(){
 let csv='Time,Temp,Humid\n';

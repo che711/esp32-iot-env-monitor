@@ -6,7 +6,7 @@
 // ============================================
 // WiFi Configuration
 // ============================================
-inline const char* WIFI_SSID = "SkyNet";
+inline const char* WIFI_SSID = "network";
 inline const char* WIFI_PASSWORD = "password";
 inline constexpr int WIFI_MAX_RETRY = 30;
 inline constexpr unsigned long WIFI_TIMEOUT = 15000;
@@ -21,15 +21,15 @@ inline constexpr uint32_t I2C_FREQ = 100000;
 // ============================================
 // Timing Configuration
 // ============================================
-inline constexpr unsigned long SENSOR_INTERVAL = 10000;       // Чтение датчика каждые 10 сек
-inline constexpr unsigned long WIFI_CHECK_INTERVAL = 3000000;  // Проверка WiFi каждые 300 сек
-inline constexpr unsigned long STATS_UPDATE_INTERVAL = 10000; // Обновление статистики каждые 10 сек
+inline constexpr unsigned long SENSOR_INTERVAL = 5000;       // Read the sensor every 5 sec
+inline constexpr unsigned long WIFI_CHECK_INTERVAL = 3000000;  // Check WiFi every 300 sec
+inline constexpr unsigned long STATS_UPDATE_INTERVAL = 10000; // Statistic update every 10 sec
 
 // ============================================
 // History Configuration
 // ============================================
-inline constexpr int HISTORY_SIZE = 60;              // 60 точек = 3 минуты при интервале 3 сек
-inline constexpr int HOURLY_HISTORY_SIZE = 1200;     // 1200 точек = 1 час
+inline constexpr int HISTORY_SIZE = 60;              // 60 pi = 3 min for 5 сек
+inline constexpr int HOURLY_HISTORY_SIZE = 1200;     // 1200 pi = 1 час
 
 // ============================================
 // Web Server Configuration
@@ -68,6 +68,6 @@ inline constexpr float HUMID_MAX_VALID = 100.0;
 // LED Configuration (для индикации состояния)
 // ============================================
 inline constexpr int LED_BUILTIN_PIN = 8;  // GPIO8 на ESP32 Super Mini
-inline constexpr bool LED_ENABLED = false;  // Отключить если мешает
+inline constexpr bool LED_ENABLED = false;  // it can be disabled
 
 #endif // CONFIG_H
