@@ -7,7 +7,8 @@
 extern float g_cpuUsage;
 
 WeatherWebServer::WeatherWebServer(SensorManager* sensor, WiFiManager* wifi)
-    : _server(WEB_SERVER_PORT), 
+    : _server(WEB_SERVER_PORT),
+      _wsServer(81),  // WebSocket на порту 81
       _sensor(sensor), 
       _wifi(wifi), 
       _bootTime(0),
@@ -32,11 +33,57 @@ void WeatherWebServer::begin() {
     _server.begin();
     Serial.printf("✓ HTTP сервер запущен на порту %d\n", WEB_SERVER_PORT);
     Serial.printf("  Адрес: http://%s/\n", _wifi->getIP().c_str());
+    
+    // Запуск WebSocket сервера
+    _wsServer.begin();
+    _wsServer.onEvent([this](uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
+        this->webSocketEvent(num, type, payload, length);
+    });
+    
+    Serial.printf("✓ WebSocket сервер запущен на порту 81\n");
+    Serial.printf("  ws://%s:81/\n", _wifi->getIP().c_str());
     Serial.println("");
 }
 
 void WeatherWebServer::handleClient() {
     _server.handleClient();
+    _wsServer.loop();  // Обработка WebSocket событий
+}
+
+void WeatherWebServer::webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
+    switch(type) {
+        case WStype_DISCONNECTED:
+            Serial.printf("[WS] Client #%u disconnected\n", num);
+            break;
+            
+        case WStype_CONNECTED: {
+            IPAddress ip = _wsServer.remoteIP(num);
+            Serial.printf("[WS] Client #%u connected from %s\n", num, ip.toString().c_str());
+            
+            // Отправляем приветственное сообщение
+            String welcome = "✓ Serial Monitor connected";
+            _wsServer.sendTXT(num, welcome);
+            break;
+        }
+            
+        case WStype_TEXT:
+            // Если клиент отправляет команды через WebSocket
+            Serial.printf("[WS] Received: %s\n", payload);
+            break;
+            
+        case WStype_ERROR:
+            Serial.printf("[WS] Error on client #%u\n", num);
+            break;
+            
+        default:
+            break;
+    }
+}
+
+void WeatherWebServer::broadcastLog(const String& message) {
+    // Отправка логов всем подключенным WebSocket клиентам
+    String msg = message;  // Создаём копию для передачи по ссылке
+    _wsServer.broadcastTXT(msg);
 }
 
 void WeatherWebServer::setCORSHeaders() {
@@ -123,19 +170,16 @@ void WeatherWebServer::handleHistory() {
     float humidHist[HISTORY_SIZE];
     
     _sensor->getHistory(tempHist, humidHist, HISTORY_SIZE);
-    int count = _sensor->getHistoryCount();  // только реальное количество записей
+    int count = _sensor->getHistoryCount();
     
-    // Текущее время в секундах (мы не имеем RTC, но можно взять uptime)
     unsigned long nowSec = millis() / 1000;
     
     String json;
     json.reserve(HISTORY_BUFFER_SIZE);
     
-    // Labels — метки времени в формате HH:MM:SS относительно текущего момента
     json = "{\"labels\":[";
     for (int i = 0; i < count; i++) {
         if (i > 0) json += ",";
-        // Каждая точка — это (count - 1 - i) интервалов назад от "сейчас"
         unsigned long pointSec = nowSec - (unsigned long)(count - 1 - i) * (SENSOR_INTERVAL / 1000);
         int h = (pointSec / 3600) % 24;
         int m = (pointSec % 3600) / 60;
