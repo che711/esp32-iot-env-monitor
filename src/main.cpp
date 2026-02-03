@@ -41,9 +41,9 @@ void logBoth(const String& message) {
 
 void printSystemInfo() {
     Serial.println("\n╔════════════════════════════════════════╗");
-    Serial.println("║   ESP32 Super Mini Weather Station    ║");
-    Serial.println("║        AHT10 Sensor v3.0              ║");
-    Serial.println("╚════════════════════════════════════════╝");
+    Serial.println("║   ESP32 Super Mini Weather Station       ║");
+    Serial.println("║        AHT10 Sensor v3.0                 ║");
+    Serial.println("╚══════════════════════════════════════════╝");
     Serial.println();
     
     Serial.println("=== System information ===");
@@ -82,14 +82,14 @@ void printStatus() {
     if (currentMillis - lastPrint >= 30000) {
         lastPrint = currentMillis;
         
-        // Получение температуры чипа (если доступно)
+        // Getting the chip temperature (if available)
         #ifdef SOC_TEMP_SENSOR_SUPPORTED
         float chipTemp = temperatureRead();
         #else
         float chipTemp = 0;
         #endif
         
-        // Статистика памяти
+        // Memory Statistics
         uint32_t freeHeap = ESP.getFreeHeap();
         uint32_t totalHeap = ESP.getHeapSize();
         uint32_t usedHeap = totalHeap - freeHeap;
@@ -109,7 +109,7 @@ void printStatus() {
         Serial.println(status);
         
         if (wifiManager.isConnected()) {
-            // Основная информация
+            // Main data
             webServer.broadcastLog("📊 === Status Update ===");
             webServer.broadcastLog("🌡️  AHT10: T=" + String(sensorManager.getTemperature(), 1) + 
                                   "°C, H=" + String(sensorManager.getHumidity(), 1) + "%");
@@ -164,8 +164,8 @@ void setup() {
     
     printSystemInfo();
     
-    // Инициализация датчика
-    Serial.println("=== Инициализация датчика ===");
+    // Initializing the sensor
+    Serial.println("=== Initializing the sensor ===");
     if (!sensorManager.begin()) {
         Serial.println("\n╔════════════════════════════════════════╗");
         Serial.println("║           CRITICAL ERROR!              ║");
@@ -184,7 +184,7 @@ void setup() {
         }
     }
     
-    // Подключение к WiFi
+    // Connecting to WiFi
     Serial.println("=== Connecting to WiFi ===");
     if (!wifiManager.begin()) {
         Serial.println("✗ Cannot connect to WiFi");
@@ -192,13 +192,13 @@ void setup() {
         Serial.println("  The web interface is unavailable");
     }
     
-    // Запуск веб-сервера
+    // Launch web-server
     Serial.println("=== Launching the web server ===");
     webServer.begin();
     
-    // Финальное сообщение
+    // Final msg
     Serial.println("╔════════════════════════════════════════╗");
-    Serial.println("║ ✓ Weather Monitor is ready to work!   ║");
+    Serial.println("║  ✓ Weather Monitor is ready to work!   ║");
     Serial.println("╚════════════════════════════════════════╝");
     Serial.println();
     
@@ -207,10 +207,10 @@ void setup() {
         Serial.println(msg);
         Serial.println();
         
-        // Отправка расширенной информации в WebSocket (с задержкой для установки соединения)
+        // Sending extended information to WebSocket (with a delay for connection establishment)
         delay(2000);
         webServer.broadcastLog("╔════════════════════════════════════════╗");
-        webServer.broadcastLog("║   ESP32 Weather Station Started!      ║");
+        webServer.broadcastLog("║    ESP32 Weather Station Started!      ║");
         webServer.broadcastLog("╚════════════════════════════════════════╝");
         webServer.broadcastLog("");
         webServer.broadcastLog("✓ System initialized successfully");
@@ -254,7 +254,7 @@ void loop() {
     unsigned long loopStart = micros();
     unsigned long currentMillis = millis();
     
-    // Проверка WiFi соединения
+    // Check WiFi connection
     if (currentMillis - lastWiFiCheck >= WIFI_CHECK_INTERVAL) {
         lastWiFiCheck = currentMillis;
         
@@ -262,7 +262,7 @@ void loop() {
         wifiManager.checkConnection();
         bool isConnected = wifiManager.isConnected();
         
-        // Логирование изменения состояния WiFi
+        // Logging WiFi status changes
         if (!wasConnected && isConnected) {
             String msg = "✓ WiFi reconnected: " + wifiManager.getSSID() + 
                         " (" + wifiManager.getIP() + ", " + 
@@ -273,12 +273,12 @@ void loop() {
         }
     }
     
-    // Обработка веб-запросов и WebSocket
+    // Web request processing and WebSocket
     if (wifiManager.isConnected()) {
         webServer.handleClient();
     }
     
-    // Чтение данных с датчика
+    // Reading data from the sensor
     if (currentMillis - lastSensorRead >= SENSOR_INTERVAL) {
         lastSensorRead = currentMillis;
         
@@ -288,14 +288,14 @@ void loop() {
             float avgTemp = sensorManager.getAvgTemp();
             float avgHumid = sensorManager.getAvgHumid();
             
-            // Базовый лог
+            // Base log
             String log = "✓ T: " + String(temp, 1) + "°C | H: " + String(humid, 1) + "%";
             Serial.println(log);
             
             if (wifiManager.isConnected()) {
                 webServer.broadcastLog(log);
                 
-                // Детальная статистика (каждое 3-е чтение = 30 сек)
+                // Detailed statistics (every 3rd reading = 30 seconds)
                 static int readCount = 0;
                 readCount++;
                 
@@ -308,7 +308,7 @@ void loop() {
                     webServer.broadcastLog("  📊 Avg: T=" + String(avgTemp, 1) + 
                                           "°C, H=" + String(avgHumid, 1) + "%");
                     
-                    // Вычисляемые параметры
+                    // Calculated parameters
                     float dewPoint = WeatherCalculations::calculateDewPoint(temp, humid);
                     float heatIndex = WeatherCalculations::calculateHeatIndex(temp, humid);
                     webServer.broadcastLog("  💧 Dew Point: " + String(dewPoint, 1) + "°C");

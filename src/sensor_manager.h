@@ -13,59 +13,59 @@ public:
     bool update();
     void resetMinMax();
     
-    // Геттеры текущих значений
+    // Getters of current values
     float getTemperature() const;
     float getHumidity() const;
     
-    // Геттеры min/max
+    // Getters min/max
     float getMinTemp() const;
     float getMaxTemp() const;
     float getMinHumid() const;
     float getMaxHumid() const;
     
-    // Геттеры средних значений
+    // Getters of average values
     float getAvgTemp() const;
     float getAvgHumid() const;
     
-    // История для графиков
+    // Graph history
     void getHistory(float* tempHist, float* humidHist, int size) const;
     int  getHistoryIndex() const;
     int  getHistoryCount() const;
     
-    // Статус датчика
+    // Sensor
     bool isValid() const;
     int getReadErrorCount() const;
     
 private:
     Adafruit_AHTX0 _aht;
     
-    // Текущие значения
+    // Current values
     float _temperature;
     float _humidity;
     
-    // Min/Max значения
+    // Min/Max values
     float _minTemp;
     float _maxTemp;
     float _minHumid;
     float _maxHumid;
     
-    // История для графика (3 минуты)
+    // History for the graph (3 minutes)
     float _tempHistory[HISTORY_SIZE];
     float _humidHistory[HISTORY_SIZE];
     int _historyIndex;
     int _historyCount;
     
-    // Часовая история для средних значений
+    // Hourly history for averages
     float* _hourlyTempHistory;
     float* _hourlyHumidHistory;
     int _hourlyHistoryIndex;
     int _hourlyHistoryCount;
     
-    // Статистика ошибок
+    // Error statistics
     int _readErrorCount;
     unsigned long _lastSuccessfulRead;
     
-    // Внутренние методы
+    // Internal methods
     void updateHistory();
     bool validateReading(float temp, float humid);
 };
