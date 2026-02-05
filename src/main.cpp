@@ -144,7 +144,7 @@ void printStatus() {
             int days = uptimeSec / 86400;
             int hours = (uptimeSec % 86400) / 3600;
             int mins = (uptimeSec % 3600) / 60;
-            String uptimeStr = "⏱️  Uptime: ";
+            String uptimeStr = "⏱️ Uptime: ";
             if (days > 0) uptimeStr += String(days) + "d ";
             uptimeStr += String(hours) + "h " + String(mins) + "m";
             webServer.broadcastLog(uptimeStr);
@@ -312,7 +312,7 @@ void loop() {
                     float dewPoint = WeatherCalculations::calculateDewPoint(temp, humid);
                     float heatIndex = WeatherCalculations::calculateHeatIndex(temp, humid);
                     webServer.broadcastLog("  💧 Dew Point: " + String(dewPoint, 1) + "°C");
-                    webServer.broadcastLog("  🌡️  Heat Index: " + String(heatIndex, 1) + "°C");
+                    webServer.broadcastLog("  🌡️ Heat Index: " + String(heatIndex, 1) + "°C");
                 }
             }
         } else {
