@@ -9,13 +9,13 @@ SensorManager::SensorManager()
       _historyIndex(0), _historyCount(0), _hourlyHistoryIndex(0), _hourlyHistoryCount(0),
       _readErrorCount(0), _lastSuccessfulRead(0) {
     
-    // Инициализация истории для графика
+    // Initializing history for a graph
     for(int i = 0; i < HISTORY_SIZE; i++) {
         _tempHistory[i] = 0;
         _humidHistory[i] = 0;
     }
     
-    // Выделение памяти для часовой истории
+    // Allocating memory for an hour-long story
     _hourlyTempHistory = new float[HOURLY_HISTORY_SIZE]();
     _hourlyHumidHistory = new float[HOURLY_HISTORY_SIZE]();
 }
@@ -26,23 +26,23 @@ SensorManager::~SensorManager() {
 }
 
 bool SensorManager::begin() {
-    Serial.println("Инициализация I2C...");
+    Serial.println("Initialization I2C...");
     Wire.begin(I2C_SDA, I2C_SCL);
     Wire.setClock(I2C_FREQ);
     delay(100);
     
-    Serial.println("Инициализация AHT10...");
+    Serial.println("Initialization AHT10...");
     if (!_aht.begin()) {
-        Serial.println("✗ ОШИБКА: AHT10 не найден!");
-        Serial.println("Проверьте подключение:");
+        Serial.println("✗ ERROR: AHT10 not found!");
+        Serial.println("Check connection:");
         Serial.printf("  SDA -> GPIO%d\n", I2C_SDA);
         Serial.printf("  SCL -> GPIO%d\n", I2C_SCL);
         return false;
     }
     
-    Serial.println("✓ AHT10 инициализирован успешно");
+    Serial.println("✓ AHT10 initialized successfully");
     
-    // Первое чтение для инициализации
+    // The first read is for initialization
     sensors_event_t humid, temp;
     if (_aht.getEvent(&humid, &temp)) {
         _temperature = temp.temperature;
@@ -51,7 +51,7 @@ bool SensorManager::begin() {
         if (validateReading(_temperature, _humidity)) {
             _minTemp = _maxTemp = _temperature;
             _minHumid = _maxHumid = _humidity;
-            Serial.printf("Начальные значения: T=%.1f°C, H=%.1f%%\n", 
+            Serial.printf("Initial values: T=%.1f°C, H=%.1f%%\n", 
                          _temperature, _humidity);
         }
     }
@@ -64,33 +64,32 @@ bool SensorManager::update() {
     
     if (!_aht.getEvent(&humid, &temp)) {
         _readErrorCount++;
-        Serial.println("✗ Ошибка чтения датчика");
+        Serial.println("✗ Sensor reading error");
         return false;
     }
     
     float newTemp = temp.temperature;
     float newHumid = humid.relative_humidity;
     
-    // Валидация данных
+    // Data validation
     if (!validateReading(newTemp, newHumid)) {
         _readErrorCount++;
-        Serial.printf("✗ Некорректные данные: T=%.1f°C, H=%.1f%%\n", 
+        Serial.printf("✗ Incorrect data: T=%.1f°C, H=%.1f%%\n", 
                      newTemp, newHumid);
         return false;
     }
     
-    // Обновление значений
+    // Updating
     _temperature = newTemp;
     _humidity = newHumid;
     _lastSuccessfulRead = millis();
     
-    // Обновление min/max
+    // Updating min/max
     if (_temperature < _minTemp) _minTemp = _temperature;
     if (_temperature > _maxTemp) _maxTemp = _temperature;
     if (_humidity < _minHumid) _minHumid = _humidity;
     if (_humidity > _maxHumid) _maxHumid = _humidity;
     
-    // Обновление истории
     updateHistory();
     
     Serial.printf("T: %.1f°C | H: %.1f%% | Avg: T=%.1f°C H=%.1f%%\n", 
@@ -100,7 +99,7 @@ bool SensorManager::update() {
 }
 
 void SensorManager::updateHistory() {
-    // Обновление истории для графика (3 минуты)
+    // Updating the history for the chart (3 minutes)
     _tempHistory[_historyIndex] = _temperature;
     _humidHistory[_historyIndex] = _humidity;
     _historyIndex = (_historyIndex + 1) % HISTORY_SIZE;
@@ -109,7 +108,7 @@ void SensorManager::updateHistory() {
         _historyCount++;
     }
     
-    // Обновление часовой истории
+    // Updating the hourly history
     _hourlyTempHistory[_hourlyHistoryIndex] = _temperature;
     _hourlyHumidHistory[_hourlyHistoryIndex] = _humidity;
     _hourlyHistoryIndex = (_hourlyHistoryIndex + 1) % HOURLY_HISTORY_SIZE;
@@ -140,7 +139,7 @@ void SensorManager::resetMinMax() {
     _maxTemp = _temperature;
     _minHumid = _humidity;
     _maxHumid = _humidity;
-    Serial.println("✓ Min/Max сброшены");
+    Serial.println("✓ Min/Max have been reset");
 }
 
 float SensorManager::getTemperature() const {
@@ -190,14 +189,14 @@ float SensorManager::getAvgHumid() const {
 void SensorManager::getHistory(float* tempHist, float* humidHist, int size) const {
     int count = min(size, _historyCount);
     
-    // Если буфер ещё не заполнен — данные лежат просто с 0 до _historyCount
+    // If the buffer is not full yet, the data simply lies from 0 to _historyCount.
     if (_historyCount < HISTORY_SIZE) {
         for (int i = 0; i < count; i++) {
             tempHist[i]  = _tempHistory[i];
             humidHist[i] = _humidHistory[i];
         }
     } else {
-        // Буфер заполнен и уже ротировал — самый старый элемент стоит на _historyIndex
+        // The buffer is full and has already rotated — the oldest element is on _historyIndex
         for (int i = 0; i < count; i++) {
             int idx = (_historyIndex + i) % HISTORY_SIZE;
             tempHist[i]  = _tempHistory[idx];
@@ -215,7 +214,7 @@ int SensorManager::getHistoryCount() const {
 }
 
 bool SensorManager::isValid() const {
-    // Считаем валидным если последнее успешное чтение было не позже 1 минуты назад
+    // We consider it valid if the last successful reading was no later than 1 minute ago.
     return (millis() - _lastSuccessfulRead) < 60000;
 }
 

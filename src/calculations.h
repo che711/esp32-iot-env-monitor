@@ -3,10 +3,10 @@
 
 class WeatherCalculations {
 public:
-    // Вычисление точки росы (Dew Point)
+    // Calculate Dew Point
     static float calculateDewPoint(float temp, float humid);
     
-    // Вычисление индекса теплоощущения (Heat Index)
+    // Calculate Heat Index
     static float calculateHeatIndex(float temp, float humid);
 };
 

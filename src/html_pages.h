@@ -7,7 +7,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>🌡️ EnvStats</title>
+<title>EnvStats</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -69,6 +69,19 @@ input:checked+.slider:before{transform:translateX(30px)}
 .comfort-good{background:rgba(255,193,7,.3)}
 .comfort-fair{background:rgba(255,152,0,.3)}
 .comfort-poor{background:rgba(220,53,69,.3)}
+.log-console{background:#1e1e1e;color:#d4d4d4;font-family:'Consolas','Monaco',monospace;font-size:12px;padding:15px;border-radius:8px;height:300px;overflow-y:auto;margin-top:15px}
+.log-console::-webkit-scrollbar{width:8px}
+.log-console::-webkit-scrollbar-track{background:#2d2d2d;border-radius:4px}
+.log-console::-webkit-scrollbar-thumb{background:#555;border-radius:4px}
+.log-console::-webkit-scrollbar-thumb:hover{background:#777}
+.log-line{margin:2px 0;white-space:pre-wrap;word-break:break-all}
+.log-error{color:#f48771}
+.log-warning{color:#dcdcaa}
+.log-info{color:#4ec9b0}
+.log-success{color:#4fc1ff}
+.ws-status{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px}
+.ws-connected{background:#28a745}
+.ws-disconnected{background:#dc3545}
 @media(max-width:768px){
 body{padding:10px}
 .header{padding:20px}
@@ -86,7 +99,7 @@ body{padding:10px}
 <div class="subtitle">Temperature and humidity monitoring</div>
 <div class="status-container">
 <div id="statusBadge" class="status online"><div class="status-dot"></div><span>Connected</span></div>
-<div class="status" style="background:#e3f2fd;color:#1976d2"><span id="lastUpdate">Loading...</span></div>
+<div class="status" style="background:#e3f2fd;color:#1976d2"><span id="lastUpdate">Загрузка...</span></div>
 </div>
 </div>
 
@@ -95,9 +108,9 @@ body{padding:10px}
 <div class="sensor-header"><div class="sensor-label">🌡️ Temperature</div></div>
 <div class="sensor-value"><span id="temperature">--</span><span class="sensor-unit" id="tempUnit">°C</span></div>
 <div class="minmax">
-<div><div style="font-size:10px">⬇️ Mim</div><div class="minmax-value"><span id="minTemp">--</span><span id="minTempUnit">°C</span></div></div>
+<div><div style="font-size:10px">⬇️ Мин</div><div class="minmax-value"><span id="minTemp">--</span><span id="minTempUnit">°C</span></div></div>
 <div class="avg-value">📊 <span id="avgTemp">--</span><span id="avgTempUnit">°C</span></div>
-<div><div style="font-size:10px">⬆️ Max</div><div class="minmax-value"><span id="maxTemp">--</span><span id="maxTempUnit">°C</span></div></div>
+<div><div style="font-size:10px">⬆️ Макс</div><div class="minmax-value"><span id="maxTemp">--</span><span id="maxTempUnit">°C</span></div></div>
 </div>
 <div class="temp-unit-toggle">
 <span class="toggle-label">°C</span>
@@ -110,9 +123,9 @@ body{padding:10px}
 <div class="sensor-header"><div class="sensor-label">💧 Humidity</div></div>
 <div class="sensor-value"><span id="humidity">--</span><span class="sensor-unit">%</span></div>
 <div class="minmax">
-<div><div style="font-size:10px">⬇️ Min</div><div class="minmax-value"><span id="minHumid">--</span>%</div></div>
+<div><div style="font-size:10px">⬇️ Мин</div><div class="minmax-value"><span id="minHumid">--</span>%</div></div>
 <div class="avg-value">📊 <span id="avgHumid">--</span>%</div>
-<div><div style="font-size:10px">⬆️ Max</div><div class="minmax-value"><span id="maxHumid">--</span>%</div></div>
+<div><div style="font-size:10px">⬆️ Макс</div><div class="minmax-value"><span id="maxHumid">--</span>%</div></div>
 </div>
 <div id="humidComfort" class="comfort-indicator"></div>
 </div>
@@ -135,7 +148,7 @@ body{padding:10px}
 <div class="card">
 <h3 style="margin-bottom:15px;color:#333">💻 System & Control</h3>
 <div class="info-grid">
-<div class="info-item"><div class="info-label">⏱️ Время</div><div class="info-value" id="uptime">--</div></div>
+<div class="info-item"><div class="info-label">⏱️ Time</div><div class="info-value" id="uptime">--</div></div>
 <div class="info-item"><div class="info-label">🧠 RAM</div><div class="info-value" id="freeHeap">--</div></div>
 <div class="info-item"><div class="info-label">📊 CPU</div><div class="info-value" id="cpuUsage">--</div></div>
 <div class="info-item"><div class="info-label">📶 SSID</div><div class="info-value" id="ssid" style="font-size:13px">--</div></div>
@@ -145,8 +158,19 @@ body{padding:10px}
 <div class="buttons">
 <button class="btn btn-primary" onclick="exportCSV()">📥 CSV</button>
 <button class="btn btn-success" onclick="exportJSON()">📋 JSON</button>
-<button class="btn btn-success" onclick="resetMinMax()">🔄 Reset MIN/MAX</button>
+<button class="btn btn-success" onclick="resetMinMax()">🔄 Reset</button>
 <button class="btn btn-danger" onclick="rebootDevice()">⚡ Reboot</button>
+</div>
+</div>
+</div>
+
+<div class="chart-row">
+<div class="card">
+<h3 style="margin-bottom:15px;color:#333">📟 Serial Monitor <span class="ws-status" id="wsStatus"></span><span id="wsStatusText" style="font-size:12px;color:#666">Подключение...</span></h3>
+<div class="log-console" id="logConsole"></div>
+<div class="buttons" style="margin-top:15px">
+<button class="btn btn-primary" onclick="clearLogs()">🗑️ Clear</button>
+<button class="btn btn-success" onclick="toggleAutoscroll()"><span id="autoscrollIcon">📌</span> Auto-scroll</button>
 </div>
 </div>
 </div>
@@ -187,7 +211,62 @@ body{padding:10px}
 
 <script>
 let F=false,D={labels:[],temp:[],humid:[],heat:[],dew:[]},T,H,E,W,errCnt=0,iU,iS,iH;
+let ws,autoscroll=true,maxLogs=500;
 const O={responsive:!0,maintainAspectRatio:!1,interaction:{mode:'index',intersect:!1},plugins:{legend:{display:!1},tooltip:{backgroundColor:'rgba(0,0,0,.8)',padding:15,titleFont:{size:14,weight:'bold'},bodyFont:{size:14},borderWidth:2,callbacks:{title:c=>'Время: '+c[0].label,label:c=>c.dataset.label+': '+c.parsed.y.toFixed(1)}}},scales:{x:{grid:{color:'rgba(0,0,0,.05)',drawBorder:!1},ticks:{font:{size:11},maxRotation:0,autoSkip:!0,maxTicksLimit:10}},y:{grid:{drawBorder:!1},ticks:{font:{size:12}}}},animation:{duration:750,easing:'easeInOutQuart',delay:0}};
+
+function initWebSocket(){
+const proto=window.location.protocol==='https:'?'wss:':'ws:';
+const wsUrl=`${proto}//${window.location.hostname}:81/`;
+ws=new WebSocket(wsUrl);
+
+ws.onopen=()=>{
+document.getElementById('wsStatus').className='ws-status ws-connected';
+document.getElementById('wsStatusText').textContent='Connected';
+addLog('WebSocket connected','info');
+};
+
+ws.onclose=()=>{
+document.getElementById('wsStatus').className='ws-status ws-disconnected';
+document.getElementById('wsStatusText').textContent='Отключено';
+addLog('WebSocket disconnected, reconnecting...','warning');
+setTimeout(initWebSocket,3000);
+};
+
+ws.onerror=(e)=>{
+addLog('WebSocket error','error');
+};
+
+ws.onmessage=(e)=>{
+addLog(e.data,'info');
+};
+}
+
+function addLog(msg,type='info'){
+const console=document.getElementById('logConsole');
+const line=document.createElement('div');
+line.className=`log-line log-${type}`;
+const time=new Date().toLocaleTimeString('ru-RU');
+line.textContent=`[${time}] ${msg}`;
+console.appendChild(line);
+
+while(console.children.length>maxLogs){
+console.removeChild(console.firstChild);
+}
+
+if(autoscroll){
+console.scrollTop=console.scrollHeight;
+}
+}
+
+function clearLogs(){
+document.getElementById('logConsole').innerHTML='';
+addLog('Logs cleared','success');
+}
+
+function toggleAutoscroll(){
+autoscroll=!autoscroll;
+document.getElementById('autoscrollIcon').textContent=autoscroll?'📌':'📍';
+}
 
 function initCharts(){
 const tc=document.getElementById('tempChart').getContext('2d');
@@ -246,7 +325,7 @@ const he=document.getElementById('humidComfort');he.textContent=hc.t;he.classNam
 document.getElementById('lastUpdate').textContent='Updated: '+new Date().toLocaleTimeString('ru-RU');
 errCnt=0;document.getElementById('statusBadge').className='status online';
 document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Connected</span>';
-}).catch(e=>{errCnt++;if(errCnt>2){document.getElementById('statusBadge').className='status offline';document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Disconnected</span>';}});
+}).catch(e=>{errCnt++;if(errCnt>2){document.getElementById('statusBadge').className='status offline';document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Нет связи</span>';}});
 }
 
 function updateStats(){
@@ -275,8 +354,8 @@ const ts=new Date().toLocaleTimeString('ru-RU');
 }).catch(e=>console.error(e));
 }
 
-function resetMinMax(){if(confirm('Сбросить min/max?')){fetch('/reset').then(()=>updateData());}}
-function rebootDevice(){if(confirm('Перезагрузить?')){fetch('/reboot');}}
+function resetMinMax(){if(confirm('Reset min/max?')){fetch('/reset').then(()=>updateData());}}
+function rebootDevice(){if(confirm('Reboot?')){fetch('/reboot');}}
 
 function exportCSV(){
 let csv='Time,Temp,Humid\n';
@@ -289,7 +368,7 @@ const b=new Blob([JSON.stringify(D)],{type:'application/json'});const a=document
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-initCharts();updateData();updateStats();updateHistory();
+initCharts();initWebSocket();updateData();updateStats();updateHistory();
 iU=setInterval(updateData,3000);iS=setInterval(updateStats,5000);iH=setInterval(updateHistory,10000);
 });
 </script>
