@@ -110,8 +110,8 @@ void printStatus() {
         
         if (wifiManager.isConnected()) {
             // Main data
-            webServer.broadcastLog("📊 === Status Update ===");
-            webServer.broadcastLog("🌡️  AHT10: T=" + String(sensorManager.getTemperature(), 1) + 
+            webServer.broadcastLog("=== Status Update ===");
+            webServer.broadcastLog("🌡️ AHT10: T=" + String(sensorManager.getTemperature(), 1) + 
                                   "°C, H=" + String(sensorManager.getHumidity(), 1) + "%");
             
             // Температура чипа
@@ -123,14 +123,14 @@ void printStatus() {
             #endif
             
             // CPU и память
-            webServer.broadcastLog("⚡ CPU: " + String(g_cpuUsage, 1) + 
+            webServer.broadcastLog(" ⚡ CPU: " + String(g_cpuUsage, 1) + 
                                   "% @ " + String(ESP.getCpuFreqMHz()) + " MHz");
             webServer.broadcastLog("🧠 RAM: " + String(freeHeap / 1024) + " KB free / " + 
                                   String(totalHeap / 1024) + " KB total (" + 
                                   String(heapUsage, 1) + "% used)");
             webServer.broadcastLog("📉 Min Free: " + String(minFreeHeap / 1024) + " KB");
             
-            // WiFi детали
+            // WiFi детали 
             webServer.broadcastLog("📶 WiFi: " + wifiManager.getSSID() + 
                                   " (Ch" + String(wifiManager.getChannel()) + 
                                   ", " + String(wifiManager.getRSSI()) + " dBm)");
@@ -301,18 +301,18 @@ void loop() {
                 
                 if (readCount % 3 == 0) {
                     // Min/Max info
-                    webServer.broadcastLog("  📊 Min: T=" + String(sensorManager.getMinTemp(), 1) + 
+                    webServer.broadcastLog("📊 Min: T=" + String(sensorManager.getMinTemp(), 1) + 
                                           "°C, H=" + String(sensorManager.getMinHumid(), 1) + "%");
-                    webServer.broadcastLog("  📊 Max: T=" + String(sensorManager.getMaxTemp(), 1) + 
+                    webServer.broadcastLog("📊 Max: T=" + String(sensorManager.getMaxTemp(), 1) + 
                                           "°C, H=" + String(sensorManager.getMaxHumid(), 1) + "%");
-                    webServer.broadcastLog("  📊 Avg: T=" + String(avgTemp, 1) + 
+                    webServer.broadcastLog("📊 Avg: T=" + String(avgTemp, 1) + 
                                           "°C, H=" + String(avgHumid, 1) + "%");
                     
                     // Calculated parameters
                     float dewPoint = WeatherCalculations::calculateDewPoint(temp, humid);
                     float heatIndex = WeatherCalculations::calculateHeatIndex(temp, humid);
-                    webServer.broadcastLog("  💧 Dew Point: " + String(dewPoint, 1) + "°C");
-                    webServer.broadcastLog("  🌡️ Heat Index: " + String(heatIndex, 1) + "°C");
+                    webServer.broadcastLog("💧 Dew Point: " + String(dewPoint, 1) + "°C");
+                    webServer.broadcastLog("🌡️ Heat Index: " + String(heatIndex, 1) + "°C");
                 }
             }
         } else {
