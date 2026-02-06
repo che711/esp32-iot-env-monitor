@@ -325,7 +325,7 @@ const he=document.getElementById('humidComfort');he.textContent=hc.t;he.classNam
 document.getElementById('lastUpdate').textContent='Updated: '+new Date().toLocaleTimeString('ru-RU');
 errCnt=0;document.getElementById('statusBadge').className='status online';
 document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Connected</span>';
-}).catch(e=>{errCnt++;if(errCnt>2){document.getElementById('statusBadge').className='status offline';document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Нет связи</span>';}});
+}).catch(e=>{errCnt++;if(errCnt>2){document.getElementById('statusBadge').className='status offline';document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Disconnected</span>';}});
 }
 
 function updateStats(){
