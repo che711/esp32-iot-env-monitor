@@ -7,44 +7,67 @@
 class SensorManager {
 public:
     SensorManager();
-    ~SensorManager();  // Добавляем деструктор
+    ~SensorManager();
     
     bool begin();
-    void update();
+    bool update();
     void resetMinMax();
     
-    float getTemperature();
-    float getHumidity();
-    float getMinTemp();
-    float getMaxTemp();
-    float getMinHumid();
-    float getMaxHumid();
-    float getAvgTemp();      // Новый метод
-    float getAvgHumid();     // Новый метод
+    // Getters of current values
+    float getTemperature() const;
+    float getHumidity() const;
     
-    void getHistory(float* tempHist, float* humidHist, int size);
+    // Getters min/max
+    float getMinTemp() const;
+    float getMaxTemp() const;
+    float getMinHumid() const;
+    float getMaxHumid() const;
+    
+    // Getters of average values
+    float getAvgTemp() const;
+    float getAvgHumid() const;
+    
+    // Graph history
+    void getHistory(float* tempHist, float* humidHist, int size) const;
+    int  getHistoryIndex() const;
+    int  getHistoryCount() const;
+    
+    // Sensor
+    bool isValid() const;
+    int getReadErrorCount() const;
     
 private:
     Adafruit_AHTX0 _aht;
     
+    // Current values
     float _temperature;
     float _humidity;
+    
+    // Min/Max values
     float _minTemp;
     float _maxTemp;
     float _minHumid;
     float _maxHumid;
     
+    // History for the graph (3 minutes)
     float _tempHistory[HISTORY_SIZE];
     float _humidHistory[HISTORY_SIZE];
     int _historyIndex;
+    int _historyCount;
     
-    // История на час для расчёта средних (используем динамическую память)
+    // Hourly history for averages
     float* _hourlyTempHistory;
     float* _hourlyHumidHistory;
     int _hourlyHistoryIndex;
-    int _hourlyHistoryCount;  // Счётчик заполненных элементов
+    int _hourlyHistoryCount;
     
+    // Error statistics
+    int _readErrorCount;
+    unsigned long _lastSuccessfulRead;
+    
+    // Internal methods
     void updateHistory();
+    bool validateReading(float temp, float humid);
 };
 
 #endif // SENSOR_MANAGER_H
