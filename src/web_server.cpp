@@ -3,14 +3,16 @@
 #include "config.h"
 #include <esp_system.h>
 
-// Внешняя переменная из main.cpp
+// External variable from main.cpp
 extern float g_cpuUsage;
+extern int bootCount;
 
-WeatherWebServer::WeatherWebServer(SensorManager* sensor, WiFiManager* wifi)
+WeatherWebServer::WeatherWebServer(SensorManager* sensor, WiFiManager* wifi, BatteryManager* battery)
     : _server(WEB_SERVER_PORT),
-      _wsServer(81),  // WebSocket на порту 81
-      _sensor(sensor), 
-      _wifi(wifi), 
+      _wsServer(WEBSOCKET_PORT),
+      _sensor(sensor),
+      _wifi(wifi),
+      _battery(battery),
       _bootTime(0),
       _requestCount(0) {
 }
@@ -19,35 +21,36 @@ void WeatherWebServer::begin() {
     _bootTime = millis();
     
     Serial.println("\n=== Web Server ===");
-    Serial.println("Настройка маршрутов...");
+    Serial.println("Setting up routes...");
     
-    // Основные маршруты
+    // Routes
     _server.on("/", HTTP_GET, [this]() { handleRoot(); });
     _server.on("/data", HTTP_GET, [this]() { handleData(); });
     _server.on("/stats", HTTP_GET, [this]() { handleStats(); });
     _server.on("/history", HTTP_GET, [this]() { handleHistory(); });
+    _server.on("/battery", HTTP_GET, [this]() { handleBattery(); });
     _server.on("/reset", HTTP_GET, [this]() { handleReset(); });
     _server.on("/reboot", HTTP_GET, [this]() { handleReboot(); });
     _server.onNotFound([this]() { handleNotFound(); });
     
     _server.begin();
-    Serial.printf("✓ HTTP сервер запущен на порту %d\n", WEB_SERVER_PORT);
-    Serial.printf("  Адрес: http://%s/\n", _wifi->getIP().c_str());
+    Serial.printf("✓ HTTP server started on port %d\n", WEB_SERVER_PORT);
+    Serial.printf("  URL: http://%s/\n", _wifi->getIP().c_str());
     
-    // Запуск WebSocket сервера
+    // WebSocket server
     _wsServer.begin();
     _wsServer.onEvent([this](uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
         this->webSocketEvent(num, type, payload, length);
     });
     
-    Serial.printf("✓ WebSocket сервер запущен на порту 81\n");
-    Serial.printf("  ws://%s:81/\n", _wifi->getIP().c_str());
+    Serial.printf("✓ WebSocket server started on port %d\n", WEBSOCKET_PORT);
+    Serial.printf("  ws://%s:%d/\n", _wifi->getIP().c_str(), WEBSOCKET_PORT);
     Serial.println("");
 }
 
 void WeatherWebServer::handleClient() {
     _server.handleClient();
-    _wsServer.loop();  // Обработка WebSocket событий
+    _wsServer.loop();
 }
 
 void WeatherWebServer::webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
@@ -60,14 +63,12 @@ void WeatherWebServer::webSocketEvent(uint8_t num, WStype_t type, uint8_t* paylo
             IPAddress ip = _wsServer.remoteIP(num);
             Serial.printf("[WS] Client #%u connected from %s\n", num, ip.toString().c_str());
             
-            // Отправляем приветственное сообщение
             String welcome = "✓ Serial Monitor connected";
             _wsServer.sendTXT(num, welcome);
             break;
         }
             
         case WStype_TEXT:
-            // Если клиент отправляет команды через WebSocket
             Serial.printf("[WS] Received: %s\n", payload);
             break;
             
@@ -81,8 +82,7 @@ void WeatherWebServer::webSocketEvent(uint8_t num, WStype_t type, uint8_t* paylo
 }
 
 void WeatherWebServer::broadcastLog(const String& message) {
-    // Отправка логов всем подключенным WebSocket клиентам
-    String msg = message;  // Создаём копию для передачи по ссылке
+    String msg = message;
     _wsServer.broadcastTXT(msg);
 }
 
@@ -103,19 +103,17 @@ void WeatherWebServer::handleData() {
     if (!_sensor->isValid()) {
         setCORSHeaders();
         _server.send(503, "application/json", 
-                    "{\"error\":\"Датчик недоступен\",\"code\":503}");
+                    "{\"error\":\"Sensor unavailable\",\"code\":503}");
         return;
     }
     
     float temp = _sensor->getTemperature();
     float humid = _sensor->getHumidity();
-    
     float dewPoint = WeatherCalculations::calculateDewPoint(temp, humid);
     float heatIndex = WeatherCalculations::calculateHeatIndex(temp, humid);
     
-    // Формирование JSON
     String json;
-    json.reserve(512);
+    json.reserve(768);
     
     json = "{";
     json += "\"temperature\":" + String(temp, 2);
@@ -128,6 +126,18 @@ void WeatherWebServer::handleData() {
     json += ",\"avgHumid\":" + String(_sensor->getAvgHumid(), 2);
     json += ",\"dewPoint\":" + String(dewPoint, 2);
     json += ",\"heatIndex\":" + String(heatIndex, 2);
+    
+    // Battery info
+    json += ",\"battery\":{";
+    json += "\"voltage\":" + String(_battery->getVoltage(), 2);
+    json += ",\"percentage\":" + String(_battery->getPercentage(), 1);
+    json += ",\"isCharging\":" + String(_battery->isCharging() ? "true" : "false");
+    json += ",\"isCharged\":" + String(_battery->isCharged() ? "true" : "false");
+    json += ",\"usbConnected\":" + String(_battery->isUSBConnected() ? "true" : "false");
+    json += ",\"status\":\"" + getBatteryStatusString() + "\"";
+    json += ",\"powerSource\":\"" + getPowerSourceString() + "\"";
+    json += "}";
+    
     json += ",\"timestamp\":" + String(millis());
     json += "}";
     
@@ -145,18 +155,32 @@ void WeatherWebServer::handleStats() {
     float heapUsagePercent = (float)usedHeap / totalHeap * 100.0;
     
     String json;
-    json.reserve(512);
+    json.reserve(768);
     
     json = "{";
     json += "\"uptime\":\"" + getUptimeString() + "\"";
+    json += ",\"bootCount\":" + String(bootCount);
     json += ",\"freeHeap\":\"" + formatBytes(freeHeap) + "\"";
     json += ",\"heapUsage\":\"" + String(heapUsagePercent, 1) + "%\"";
     json += ",\"cpuUsage\":\"" + String(getCPUUsage(), 1) + "\"";
+    json += ",\"cpuFreq\":\"" + String(ESP.getCpuFreqMHz()) + " MHz\"";
     json += ",\"ssid\":\"" + _wifi->getSSID() + "\"";
     json += ",\"rssi\":\"" + String(_wifi->getRSSI()) + "\"";
     json += ",\"ip\":\"" + _wifi->getIP() + "\"";
     json += ",\"requests\":" + String(_requestCount);
     json += ",\"errors\":" + String(_sensor->getReadErrorCount());
+    
+    // Battery stats
+    json += ",\"battery\":{";
+    json += "\"voltage\":" + String(_battery->getVoltage(), 2);
+    json += ",\"percentage\":" + String(_battery->getPercentage(), 1);
+    json += ",\"status\":\"" + getBatteryStatusString() + "\"";
+    json += ",\"powerSource\":\"" + getPowerSourceString() + "\"";
+    json += ",\"isCharging\":" + String(_battery->isCharging() ? "true" : "false");
+    json += ",\"isCharged\":" + String(_battery->isCharged() ? "true" : "false");
+    json += ",\"usbConnected\":" + String(_battery->isUSBConnected() ? "true" : "false");
+    json += "}";
+    
     json += "}";
     
     setCORSHeaders();
@@ -209,6 +233,30 @@ void WeatherWebServer::handleHistory() {
     _server.send(200, "application/json", json);
 }
 
+void WeatherWebServer::handleBattery() {
+    _requestCount++;
+    
+    String json;
+    json.reserve(512);
+    
+    json = "{";
+    json += "\"voltage\":" + String(_battery->getVoltage(), 3);
+    json += ",\"percentage\":" + String(_battery->getPercentage(), 2);
+    json += ",\"status\":\"" + getBatteryStatusString() + "\"";
+    json += ",\"powerSource\":\"" + getPowerSourceString() + "\"";
+    json += ",\"isCharging\":" + String(_battery->isCharging() ? "true" : "false");
+    json += ",\"isCharged\":" + String(_battery->isCharged() ? "true" : "false");
+    json += ",\"usbConnected\":" + String(_battery->isUSBConnected() ? "true" : "false");
+    json += ",\"isLow\":" + String(_battery->isBatteryLow() ? "true" : "false");
+    json += ",\"isCritical\":" + String(_battery->isBatteryCritical() ? "true" : "false");
+    json += ",\"lastUpdate\":" + String(_battery->getLastUpdateTime());
+    json += ",\"readCount\":" + String(_battery->getReadCount());
+    json += "}";
+    
+    setCORSHeaders();
+    _server.send(200, "application/json", json);
+}
+
 void WeatherWebServer::handleReset() {
     _requestCount++;
     
@@ -216,17 +264,17 @@ void WeatherWebServer::handleReset() {
     
     setCORSHeaders();
     _server.send(200, "application/json", 
-                "{\"success\":true,\"message\":\"Min/Max значения сброшены\"}");
+                "{\"success\":true,\"message\":\"Min/Max values reset\"}");
 }
 
 void WeatherWebServer::handleReboot() {
     _requestCount++;
     
-    Serial.println("\n=== ПЕРЕЗАГРУЗКА ПО ЗАПРОСУ ПОЛЬЗОВАТЕЛЯ ===");
+    Serial.println("\n=== REBOOT BY USER REQUEST ===");
     
     setCORSHeaders();
     _server.send(200, "application/json", 
-                "{\"success\":true,\"message\":\"Устройство перезагружается...\"}");
+                "{\"success\":true,\"message\":\"Device rebooting...\"}");
     
     delay(500);
     ESP.restart();
@@ -274,6 +322,35 @@ float WeatherWebServer::getCPUUsage() const {
     return g_cpuUsage;
 }
 
+String WeatherWebServer::getBatteryStatusString() const {
+    switch (_battery->getStatus()) {
+        case BatteryStatus::CHARGING:
+            return "Charging";
+        case BatteryStatus::CHARGED:
+            return "Charged";
+        case BatteryStatus::DISCHARGING:
+            return "Discharging";
+        case BatteryStatus::BATTERY_LOW:  // Updated name
+            return "Low";
+        case BatteryStatus::CRITICAL:
+            return "Critical";
+        default:
+            return "Unknown";
+    }
+}
+
+String WeatherWebServer::getPowerSourceString() const {
+    switch (_battery->getPowerSource()) {
+        case PowerSource::BATTERY:
+            return "Battery";
+        case PowerSource::USB_CHARGING:
+            return "USB";
+        default:
+            return "Unknown";
+    }
+}
+
 unsigned long WeatherWebServer::getRequestCount() const {
     return _requestCount;
 }
+

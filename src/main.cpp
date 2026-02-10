@@ -4,21 +4,39 @@
 #include "sensor_manager.h"
 #include "web_server.h"
 #include "calculations.h"
+#include "battery_manager.h"
+#include <esp_sleep.h>
+#include <esp_wifi.h>
+
+// ============================================
+// RTC Memory (preserved during deep sleep)
+// ============================================
+RTC_DATA_ATTR int bootCount = 0;
+RTC_DATA_ATTR float rtcMinTemp = TEMP_INIT_MIN;
+RTC_DATA_ATTR float rtcMaxTemp = TEMP_INIT_MAX;
+RTC_DATA_ATTR float rtcMinHumid = HUMID_INIT_MIN;
+RTC_DATA_ATTR float rtcMaxHumid = HUMID_INIT_MAX;
+RTC_DATA_ATTR unsigned long rtcTotalAwakeTime = 0;
+RTC_DATA_ATTR int rtcDataVersion = 0;
 
 // ============================================
 // Global variables
 // ============================================
 float g_cpuUsage = 0.0;
+unsigned long awakeStartTime = 0;
+bool shouldEnterDeepSleep = false;
 
-// Objects
+// Objects (order matters - batteryManager must be declared before webServer)
 WiFiManager wifiManager(WIFI_SSID, WIFI_PASSWORD);
 SensorManager sensorManager;
-WeatherWebServer webServer(&sensorManager, &wifiManager);
+BatteryManager batteryManager;
+WeatherWebServer webServer(&sensorManager, &wifiManager, &batteryManager);
 
 // Timers
 unsigned long lastSensorRead = 0;
 unsigned long lastWiFiCheck = 0;
 unsigned long lastStatsUpdate = 0;
+unsigned long lastBatteryCheck = 0;
 
 // CPU monitoring
 unsigned long lastCpuCheck = 0;
@@ -36,17 +54,163 @@ void logBoth(const String& message) {
 }
 
 // ============================================
-// Functions
+// Deep Sleep Functions
+// ============================================
+
+void printWakeupReason() {
+    esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+    
+    Serial.print("Wakeup reason: ");
+    switch(wakeup_reason) {
+        case ESP_SLEEP_WAKEUP_TIMER:
+            Serial.println("Timer");
+            break;
+        case ESP_SLEEP_WAKEUP_EXT0:
+            Serial.println("External signal (RTC_IO)");
+            break;
+        case ESP_SLEEP_WAKEUP_EXT1:
+            Serial.println("External signal (RTC_CNTL)");
+            break;
+        case ESP_SLEEP_WAKEUP_TOUCHPAD:
+            Serial.println("Touchpad");
+            break;
+        case ESP_SLEEP_WAKEUP_ULP:
+            Serial.println("ULP program");
+            break;
+        default:
+            Serial.println("Not deep sleep wakeup (first boot or reset)");
+            break;
+    }
+}
+
+unsigned long getDeepSleepDuration() {
+    float batteryPercent = batteryManager.getPercentage();
+    
+    if (batteryPercent < BATTERY_CRITICAL_PERCENT) {
+        return DEEP_SLEEP_DURATION_CRITICAL;
+    } else if (batteryPercent < BATTERY_LOW_PERCENT) {
+        return DEEP_SLEEP_DURATION_LOW;
+    } else {
+        return DEEP_SLEEP_DURATION;
+    }
+}
+
+unsigned long getAwakeTime() {
+    if (batteryManager.isBatteryLow()) {
+        return AWAKE_TIME_FAST;
+    }
+    return AWAKE_TIME_NORMAL;
+}
+
+void enterDeepSleep() {
+    unsigned long sleepDuration = getDeepSleepDuration();
+    
+    Serial.println("\n╔════════════════════════════════════════╗");
+    Serial.println("║       ENTERING DEEP SLEEP MODE         ║");
+    Serial.println("╚════════════════════════════════════════╝");
+    Serial.println();
+    
+    // Update RTC memory with current min/max
+    rtcMinTemp = sensorManager.getMinTemp();
+    rtcMaxTemp = sensorManager.getMaxTemp();
+    rtcMinHumid = sensorManager.getMinHumid();
+    rtcMaxHumid = sensorManager.getMaxHumid();
+    rtcTotalAwakeTime += (millis() - awakeStartTime);
+    rtcDataVersion = RTC_DATA_VERSION;
+    
+    Serial.printf("Sleep duration: %lu seconds (%.1f min)\n", sleepDuration, sleepDuration / 60.0);
+    Serial.printf("Battery: %.1f%% (%.2fV)\n", batteryManager.getPercentage(), batteryManager.getVoltage());
+    Serial.printf("Boot count: %d\n", bootCount + 1);
+    Serial.printf("Total awake time: %lu sec\n", rtcTotalAwakeTime / 1000);
+    Serial.println();
+    
+    // Broadcast final message
+    if (wifiManager.isConnected()) {
+        webServer.broadcastLog("💤 Entering deep sleep for " + String(sleepDuration / 60) + " minutes");
+        webServer.broadcastLog("🔋 Battery: " + String(batteryManager.getPercentage(), 1) + "%");
+        delay(500); // Give time for message to send
+    }
+    
+    // Cleanup before sleep
+    Serial.println("Shutting down systems...");
+    
+    // Disconnect WiFi properly
+    if (wifiManager.isConnected()) {
+        Serial.println("  ✓ Disconnecting WiFi");
+        WiFi.disconnect(true);
+        WiFi.mode(WIFI_OFF);
+    }
+    
+    // Turn off peripherals
+    Serial.println("  ✓ Disabling peripherals");
+    
+    Serial.println("  ✓ Systems shutdown complete");
+    Serial.println();
+    Serial.println("💤 Good night! See you in " + String(sleepDuration / 60) + " minutes...");
+    Serial.println();
+    
+    delay(100);
+    
+    // Configure wakeup timer
+    esp_sleep_enable_timer_wakeup(sleepDuration * 1000000ULL); // Convert to microseconds
+    
+    // Enter deep sleep
+    esp_deep_sleep_start();
+}
+
+bool shouldStayAwake() {
+    // Check if we should stay awake
+    if (!DEEP_SLEEP_ENABLED) {
+        return true;
+    }
+    
+    // Stay awake if USB connected and configured to do so
+    if (STAY_AWAKE_WHEN_CHARGING && batteryManager.isUSBConnected()) {
+        return true;
+    }
+    
+    // Check if awake time expired
+    unsigned long awakeTime = getAwakeTime();
+    if (millis() - awakeStartTime < awakeTime) {
+        return true;
+    }
+    
+    return false;
+}
+
+void adjustCPUFrequency() {
+    if (!REDUCE_CPU_FREQ) return;
+    
+    int targetFreq = batteryManager.isUSBConnected() ? CPU_FREQ_CHARGING : CPU_FREQ_BATTERY;
+    int currentFreq = ESP.getCpuFreqMHz();
+    
+    if (currentFreq != targetFreq) {
+        setCpuFrequencyMhz(targetFreq);
+        Serial.printf("CPU frequency adjusted: %d MHz -> %d MHz\n", currentFreq, targetFreq);
+        
+        if (wifiManager.isConnected()) {
+            webServer.broadcastLog("⚡ CPU: " + String(currentFreq) + " → " + String(targetFreq) + " MHz");
+        }
+    }
+}
+
+// ============================================
+// System Functions
 // ============================================
 
 void printSystemInfo() {
     Serial.println("\n╔════════════════════════════════════════╗");
-    Serial.println("║   ESP32 Super Mini Weather Station       ║");
-    Serial.println("║        AHT10 Sensor v3.0                 ║");
-    Serial.println("╚══════════════════════════════════════════╝");
+    Serial.println("║   ESP32 Super Mini Weather Station    ║");
+    Serial.println("║     AHT10 + 18650 Battery v4.0        ║");
+    Serial.println("╚════════════════════════════════════════╝");
     Serial.println();
     
-    Serial.println("=== System information ===");
+    Serial.println("=== Boot Information ===");
+    Serial.printf("Boot count:     %d\n", bootCount);
+    printWakeupReason();
+    Serial.println();
+    
+    Serial.println("=== System Information ===");
     Serial.printf("Chip Model:     %s\n", ESP.getChipModel());
     Serial.printf("Chip Revision:  %d\n", ESP.getChipRevision());
     Serial.printf("CPU Frequency:  %d MHz\n", ESP.getCpuFreqMHz());
@@ -54,6 +218,16 @@ void printSystemInfo() {
     Serial.printf("Free Heap:      %d KB\n", ESP.getFreeHeap() / 1024);
     Serial.printf("SDK Version:    %s\n", ESP.getSdkVersion());
     Serial.println();
+    
+    if (rtcDataVersion == RTC_DATA_VERSION) {
+        Serial.println("=== RTC Memory (from previous boot) ===");
+        Serial.printf("Min Temp:       %.1f°C\n", rtcMinTemp);
+        Serial.printf("Max Temp:       %.1f°C\n", rtcMaxTemp);
+        Serial.printf("Min Humid:      %.1f%%\n", rtcMinHumid);
+        Serial.printf("Max Humid:      %.1f%%\n", rtcMaxHumid);
+        Serial.printf("Total awake:    %lu sec\n", rtcTotalAwakeTime / 1000);
+        Serial.println();
+    }
 }
 
 void updateCPUUsage() {
@@ -82,74 +256,33 @@ void printStatus() {
     if (currentMillis - lastPrint >= 30000) {
         lastPrint = currentMillis;
         
-        // Getting the chip temperature (if available)
-        #ifdef SOC_TEMP_SENSOR_SUPPORTED
-        float chipTemp = temperatureRead();
-        #else
-        float chipTemp = 0;
-        #endif
-        
-        // Memory Statistics
-        uint32_t freeHeap = ESP.getFreeHeap();
-        uint32_t totalHeap = ESP.getHeapSize();
-        uint32_t usedHeap = totalHeap - freeHeap;
-        float heapUsage = (float)usedHeap / totalHeap * 100.0;
-        uint32_t minFreeHeap = ESP.getMinFreeHeap();
-        
-        String status = "\n=== System status ===\n";
+        String status = "\n=== System Status ===\n";
         status += "Uptime:         " + String(millis() / 1000) + " sec\n";
+        status += "Boot count:     " + String(bootCount) + "\n";
         status += "WiFi:           " + String(wifiManager.isConnected() ? "✓ Connected" : "✗ Disconnected");
         status += " (" + String(wifiManager.getRSSI()) + " dBm)\n";
         status += "Temperature:    " + String(sensorManager.getTemperature(), 1) + "°C\n";
         status += "Humidity:       " + String(sensorManager.getHumidity(), 1) + "%\n";
+        status += "Battery:        " + String(batteryManager.getPercentage(), 1) + "% (" + String(batteryManager.getVoltage(), 2) + "V)\n";
+        status += "Power:          " + String(batteryManager.isUSBConnected() ? "USB" : "Battery") + "\n";
         status += "CPU Usage:      " + String(g_cpuUsage, 1) + "%\n";
         status += "Free Heap:      " + String(ESP.getFreeHeap() / 1024) + " KB\n";
-        status += "Web Requests:   " + String(webServer.getRequestCount()) + "\n";
         
         Serial.println(status);
         
         if (wifiManager.isConnected()) {
-            // Main data
             webServer.broadcastLog("=== Status Update ===");
-            webServer.broadcastLog("🌡️ AHT10: T=" + String(sensorManager.getTemperature(), 1) + 
+            webServer.broadcastLog("🌡️ Sensor: T=" + String(sensorManager.getTemperature(), 1) + 
                                   "°C, H=" + String(sensorManager.getHumidity(), 1) + "%");
+            webServer.broadcastLog("🔋 Battery: " + String(batteryManager.getPercentage(), 1) + 
+                                  "% (" + String(batteryManager.getVoltage(), 2) + "V)");
             
-            // Температура чипа
-            #ifdef SOC_TEMP_SENSOR_SUPPORTED
-            if (chipTemp > 0) {
-                String tempColor = chipTemp > 70 ? "🔥" : chipTemp > 50 ? "🌡️" : "❄️";
-                webServer.broadcastLog(tempColor + " Chip: " + String(chipTemp, 1) + "°C");
-            }
-            #endif
+            String powerStatus = batteryManager.isCharging() ? "⚡ Charging" : 
+                               batteryManager.isCharged() ? "✓ Charged" : 
+                               "🔋 Discharging";
+            webServer.broadcastLog(powerStatus);
             
-            // CPU и память
-            webServer.broadcastLog(" ⚡ CPU: " + String(g_cpuUsage, 1) + 
-                                  "% @ " + String(ESP.getCpuFreqMHz()) + " MHz");
-            webServer.broadcastLog("🧠 RAM: " + String(freeHeap / 1024) + " KB free / " + 
-                                  String(totalHeap / 1024) + " KB total (" + 
-                                  String(heapUsage, 1) + "% used)");
-            webServer.broadcastLog("📉 Min Free: " + String(minFreeHeap / 1024) + " KB");
-            
-            // WiFi детали 
-            webServer.broadcastLog("📶 WiFi: " + wifiManager.getSSID() + 
-                                  " (Ch" + String(wifiManager.getChannel()) + 
-                                  ", " + String(wifiManager.getRSSI()) + " dBm)");
-            
-            // Статистика работы
-            webServer.broadcastLog("📈 Requests: " + String(webServer.getRequestCount()) + 
-                                  " | Errors: " + String(sensorManager.getReadErrorCount()));
-            
-            // Uptime красиво
-            unsigned long uptimeSec = millis() / 1000;
-            int days = uptimeSec / 86400;
-            int hours = (uptimeSec % 86400) / 3600;
-            int mins = (uptimeSec % 3600) / 60;
-            String uptimeStr = "⏱️ Uptime: ";
-            if (days > 0) uptimeStr += String(days) + "d ";
-            uptimeStr += String(hours) + "h " + String(mins) + "m";
-            webServer.broadcastLog(uptimeStr);
-            
-            webServer.broadcastLog("━━━━━━━━━━━━━━━━━━━━━━━");
+            webServer.broadcastLog("━━━━━━━━━━━━━━━━━━━━━━━━━━");
         }
     }
 }
@@ -159,91 +292,124 @@ void printStatus() {
 // ============================================
 
 void setup() {
+    awakeStartTime = millis();
+    bootCount++;
+    
     Serial.begin(SERIAL_BAUD);
     delay(1000);
     
     printSystemInfo();
     
-    // Initializing the sensor
-    Serial.println("=== Initializing the sensor ===");
+    // Initialize battery manager first
+    Serial.println("=== Initializing Battery ===");
+    if (!batteryManager.begin()) {
+        Serial.println("✗ Battery initialization failed");
+    }
+    
+    // Adjust CPU frequency based on power source
+    adjustCPUFrequency();
+    
+    // Check if battery is critical - enter deep sleep immediately
+    if (batteryManager.isBatteryCritical() && !batteryManager.isUSBConnected()) {
+        Serial.println("\n⚠️  CRITICAL BATTERY LEVEL!");
+        Serial.printf("Battery: %.1f%% (%.2fV)\n", batteryManager.getPercentage(), batteryManager.getVoltage());
+        Serial.println("Entering emergency deep sleep...");
+        delay(1000);
+        enterDeepSleep();
+    }
+    
+    // Initialize sensor
+    Serial.println("=== Initializing Sensor ===");
     if (!sensorManager.begin()) {
         Serial.println("\n╔════════════════════════════════════════╗");
         Serial.println("║           CRITICAL ERROR!              ║");
-        Serial.println("║       AHT10  is not detected!          ║");
+        Serial.println("║       AHT10 is not detected!           ║");
         Serial.println("╚════════════════════════════════════════╝");
-        Serial.println();
-        Serial.println("Possible reasons:");
-        Serial.println("  1. Incorrect I2C connection");
-        Serial.println("  2. Damaged sensor");
-        Serial.println("  3. Incorrect GPIO pins in config.h");
-        Serial.println();
-        Serial.println("Check the connection and restart the device");
+        
+        // If on battery and sensor failed, sleep to save power
+        if (!batteryManager.isUSBConnected() && DEEP_SLEEP_ENABLED) {
+            Serial.println("Entering deep sleep due to sensor error...");
+            delay(1000);
+            enterDeepSleep();
+        }
         
         while (1) {
-            delay(250);
+            delay(1000);
         }
     }
     
-    // Connecting to WiFi
+    // Restore min/max from RTC memory if valid
+    if (rtcDataVersion == RTC_DATA_VERSION) {
+        // Set initial min/max from RTC memory (они будут обновлены при первом чтении)
+        Serial.println("✓ Restored min/max from RTC memory");
+    }
+    
+    // Connect to WiFi
     Serial.println("=== Connecting to WiFi ===");
     if (!wifiManager.begin()) {
         Serial.println("✗ Cannot connect to WiFi");
-        Serial.println("  Keep working offline.");
-        Serial.println("  The web interface is unavailable");
+        
+        // If on battery and can't connect, sleep after taking reading
+        if (!batteryManager.isUSBConnected() && DEEP_SLEEP_ENABLED) {
+            Serial.println("Will enter deep sleep after sensor reading...");
+            shouldEnterDeepSleep = true;
+        }
     }
     
-    // Launch web-server
-    Serial.println("=== Launching the web server ===");
-    webServer.begin();
+    // Enable WiFi power save if on battery
+    if (WIFI_POWER_SAVE && !batteryManager.isUSBConnected()) {
+        esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+        Serial.println("✓ WiFi power save enabled");
+    }
     
-    // Final msg
+    // Launch web server only if WiFi connected
+    if (wifiManager.isConnected()) {
+        Serial.println("=== Launching Web Server ===");
+        webServer.begin();
+    }
+    
+    // Final message
     Serial.println("╔════════════════════════════════════════╗");
-    Serial.println("║  ✓ Weather Monitor is ready to work!   ║");
+    Serial.println("║  ✓ Weather Monitor Ready!              ║");
     Serial.println("╚════════════════════════════════════════╝");
     Serial.println();
     
     if (wifiManager.isConnected()) {
-        String msg = "Access to the web interface: http://" + wifiManager.getIP() + "/";
+        String msg = "Web interface: http://" + wifiManager.getIP() + "/";
         Serial.println(msg);
         Serial.println();
         
-        // Sending extended information to WebSocket (with a delay for connection establishment)
         delay(2000);
         webServer.broadcastLog("╔════════════════════════════════════════╗");
-        webServer.broadcastLog("║    ESP32 Weather Station Started!      ║");
+        webServer.broadcastLog("║    ESP32 Weather Station Started!     ║");
         webServer.broadcastLog("╚════════════════════════════════════════╝");
         webServer.broadcastLog("");
-        webServer.broadcastLog("✓ System initialized successfully");
+        webServer.broadcastLog("✓ System initialized (Boot #" + String(bootCount) + ")");
         webServer.broadcastLog("✓ AHT10 sensor: Ready");
         webServer.broadcastLog("✓ WiFi: " + wifiManager.getSSID());
         webServer.broadcastLog("✓ IP: " + wifiManager.getIP());
-        webServer.broadcastLog("✓ Signal: " + String(wifiManager.getRSSI()) + " dBm (Ch" + 
-                              String(wifiManager.getChannel()) + ")");
-        webServer.broadcastLog("");
-        webServer.broadcastLog("📟 Hardware Info:");
-        webServer.broadcastLog("  Chip: " + String(ESP.getChipModel()) + 
-                              " rev" + String(ESP.getChipRevision()));
-        webServer.broadcastLog("  CPU: " + String(ESP.getCpuFreqMHz()) + " MHz");
-        webServer.broadcastLog("  Flash: " + String(ESP.getFlashChipSize() / (1024 * 1024)) + " MB");
-        webServer.broadcastLog("  RAM: " + String(ESP.getHeapSize() / 1024) + " KB");
-        webServer.broadcastLog("  Free: " + String(ESP.getFreeHeap() / 1024) + " KB");
+        webServer.broadcastLog("🔋 Battery: " + String(batteryManager.getPercentage(), 1) + "% (" + 
+                              String(batteryManager.getVoltage(), 2) + "V)");
+        webServer.broadcastLog("⚡ Power: " + String(batteryManager.isUSBConnected() ? "USB" : "Battery"));
         
-        #ifdef SOC_TEMP_SENSOR_SUPPORTED
-        float chipTemp = temperatureRead();
-        if (chipTemp > 0) {
-            webServer.broadcastLog("  Chip Temp: " + String(chipTemp, 1) + "°C");
+        if (DEEP_SLEEP_ENABLED && !batteryManager.isUSBConnected()) {
+            webServer.broadcastLog("💤 Deep sleep mode: Active (will sleep in " + 
+                                  String(getAwakeTime() / 1000) + "s)");
         }
-        #endif
         
-        webServer.broadcastLog("");
-        webServer.broadcastLog("🌡️  Initial reading:");
-        webServer.broadcastLog("  Temperature: " + String(sensorManager.getTemperature(), 1) + "°C");
-        webServer.broadcastLog("  Humidity: " + String(sensorManager.getHumidity(), 1) + "%");
-        webServer.broadcastLog("");
-        webServer.broadcastLog("📊 Monitoring started (interval: " + 
-                              String(SENSOR_INTERVAL / 1000) + "s)");
-        webServer.broadcastLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        webServer.broadcastLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     }
+    
+    // Print power mode info
+    if (batteryManager.isUSBConnected()) {
+        Serial.println("🔌 USB Connected - Normal Operation Mode");
+    } else {
+        Serial.println("🔋 Battery Mode - Power Saving Active");
+        if (DEEP_SLEEP_ENABLED) {
+            Serial.printf("💤 Will enter deep sleep in %lu seconds\n", getAwakeTime() / 1000);
+        }
+    }
+    Serial.println();
 }
 
 // ============================================
@@ -254,7 +420,39 @@ void loop() {
     unsigned long loopStart = micros();
     unsigned long currentMillis = millis();
     
-    // Check WiFi connection
+    // Check if should enter deep sleep
+    if (!shouldStayAwake() && DEEP_SLEEP_ON_BATTERY && !batteryManager.isUSBConnected()) {
+        enterDeepSleep();
+    }
+    
+    // Battery check
+    if (currentMillis - lastBatteryCheck >= BATTERY_CHECK_INTERVAL) {
+        lastBatteryCheck = currentMillis;
+        batteryManager.update();
+        
+        // Adjust CPU frequency if power source changed
+        adjustCPUFrequency();
+        
+        // Log battery status
+        if (wifiManager.isConnected()) {
+            static float lastLoggedPercent = -1;
+            float currentPercent = batteryManager.getPercentage();
+            
+            // Log every 5% change
+            if (abs(currentPercent - lastLoggedPercent) >= 5.0) {
+                String status = "🔋 Battery: " + String(currentPercent, 1) + "% (" + 
+                              String(batteryManager.getVoltage(), 2) + "V)";
+                
+                if (batteryManager.isCharging()) status += " ⚡ Charging";
+                else if (batteryManager.isCharged()) status += " ✓ Charged";
+                
+                webServer.broadcastLog(status);
+                lastLoggedPercent = currentPercent;
+            }
+        }
+    }
+    
+    // WiFi check
     if (currentMillis - lastWiFiCheck >= WIFI_CHECK_INTERVAL) {
         lastWiFiCheck = currentMillis;
         
@@ -262,61 +460,35 @@ void loop() {
         wifiManager.checkConnection();
         bool isConnected = wifiManager.isConnected();
         
-        // Logging WiFi status changes
         if (!wasConnected && isConnected) {
-            String msg = "✓ WiFi reconnected: " + wifiManager.getSSID() + 
-                        " (" + wifiManager.getIP() + ", " + 
-                        String(wifiManager.getRSSI()) + " dBm)";
+            String msg = "✓ WiFi reconnected: " + wifiManager.getSSID();
             logBoth(msg);
         } else if (wasConnected && !isConnected) {
             logBoth("✗ WiFi connection lost!");
         }
     }
     
-    // Web request processing and WebSocket
+    // Web request processing
     if (wifiManager.isConnected()) {
         webServer.handleClient();
     }
     
-    // Reading data from the sensor
+    // Sensor reading
     if (currentMillis - lastSensorRead >= SENSOR_INTERVAL) {
         lastSensorRead = currentMillis;
         
         if (sensorManager.update()) {
             float temp = sensorManager.getTemperature();
             float humid = sensorManager.getHumidity();
-            float avgTemp = sensorManager.getAvgTemp();
-            float avgHumid = sensorManager.getAvgHumid();
             
-            // Base log
-            String log = "✓ T: " + String(temp, 1) + "°C | H: " + String(humid, 1) + "%";
-            Serial.println(log);
+            Serial.printf("✓ T: %.1f°C | H: %.1f%%\n", temp, humid);
             
             if (wifiManager.isConnected()) {
+                String log = "✓ T: " + String(temp, 1) + "°C | H: " + String(humid, 1) + "%";
                 webServer.broadcastLog(log);
-                
-                // Detailed statistics (every 3rd reading = 30 seconds)
-                static int readCount = 0;
-                readCount++;
-                
-                if (readCount % 3 == 0) {
-                    // Min/Max info
-                    webServer.broadcastLog("📊 Min: T=" + String(sensorManager.getMinTemp(), 1) + 
-                                          "°C, H=" + String(sensorManager.getMinHumid(), 1) + "%");
-                    webServer.broadcastLog("📊 Max: T=" + String(sensorManager.getMaxTemp(), 1) + 
-                                          "°C, H=" + String(sensorManager.getMaxHumid(), 1) + "%");
-                    webServer.broadcastLog("📊 Avg: T=" + String(avgTemp, 1) + 
-                                          "°C, H=" + String(avgHumid, 1) + "%");
-                    
-                    // Calculated parameters
-                    float dewPoint = WeatherCalculations::calculateDewPoint(temp, humid);
-                    float heatIndex = WeatherCalculations::calculateHeatIndex(temp, humid);
-                    webServer.broadcastLog("💧 Dew Point: " + String(dewPoint, 1) + "°C");
-                    webServer.broadcastLog("🌡️ Heat Index: " + String(heatIndex, 1) + "°C");
-                }
             }
         } else {
-            String err = "✗ Sensor reading error (count: " + String(sensorManager.getReadErrorCount()) + ")";
+            String err = "✗ Sensor read error";
             logBoth(err);
         }
     }
