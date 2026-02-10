@@ -7,7 +7,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EnvStats</title>
+<title>Env_Stats</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
