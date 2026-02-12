@@ -1,8 +1,6 @@
 #include "battery_manager.h"
 #include "config.h"
 
-
-
 // ============================================
 // Таблица разряда Li-Ion 18650 (напряжение → %)
 // ============================================
@@ -51,6 +49,53 @@ void BatteryManager::begin() {
 
     Serial.println("✓ BatteryManager initialized");
     Serial.println("  " + getSummaryString());
+    
+    // ═══════════════════════════════════════════════════════════
+    // ОТЛАДКА: Вывод параметров конфигурации
+    // ═══════════════════════════════════════════════════════════
+    Serial.println("\n╔════════════════════════════════════════════╗");
+    Serial.println("║  Battery ADC Configuration & Diagnostics   ║");
+    Serial.println("╚════════════════════════════════════════════╝");
+    Serial.printf("ADC Pin:           GPIO%d\n", _adcPin);
+    Serial.printf("ADC Samples:       %d\n", BATTERY_ADC_SAMPLES);
+    Serial.printf("ADC Ref Voltage:   %.2fV\n", BATTERY_ADC_REF_VOLTAGE);
+    Serial.printf("Divider Ratio:     %.2f\n", BATTERY_DIVIDER_RATIO);
+    Serial.printf("Correction:        %.2f\n", BATTERY_ADC_CORRECTION);
+    Serial.println("─────────────────────────────────────────────");
+    
+    // Одиночное измерение для отладки
+    long sum = 0;
+    for (int i = 0; i < BATTERY_ADC_SAMPLES; i++) {
+        sum += analogRead(_adcPin);
+        delayMicroseconds(100);
+    }
+    float raw = (float)sum / BATTERY_ADC_SAMPLES;
+    float vAdc = (raw / ADC_MAX_VALUE) * BATTERY_ADC_REF_VOLTAGE;
+    float vBat_calc = vAdc * BATTERY_DIVIDER_RATIO * BATTERY_ADC_CORRECTION;
+    
+    Serial.printf("ADC Raw Value:     %.0f / 4095\n", raw);
+    Serial.printf("Voltage on GPIO:   %.3fV\n", vAdc);
+    Serial.printf("Calculated vBat:   %.3fV\n", vBat_calc);
+    Serial.printf("Reported vBat:     %.2fV\n", _voltage);
+    
+    if (vBat_calc > 4.5f) {
+        Serial.println("\n⚠️  WARNING: Calculated voltage > 4.5V!");
+        Serial.println("   This indicates calibration problem.");
+        Serial.printf("   Voltage capped at 4.5V (real: %.2fV)\n", vBat_calc);
+    }
+    
+    // Расчет ожидаемого коэффициента
+    if (vAdc > 0.1f) {
+        float expected_ratio = _voltage / (vAdc * BATTERY_DIVIDER_RATIO);
+        Serial.printf("\nExpected correction: %.2f (current: %.2f)\n", 
+                     expected_ratio, BATTERY_ADC_CORRECTION);
+        
+        if (fabs(expected_ratio - BATTERY_ADC_CORRECTION) > 0.1f) {
+            Serial.println("⚠️  Correction mismatch detected!");
+        }
+    }
+    
+    Serial.println("╚════════════════════════════════════════════╝\n");
 }
 
 // ============================================
@@ -71,7 +116,7 @@ void BatteryManager::update() {
 }
 
 // ============================================
-// Чтение напряжения
+// Чтение напряжения (с отладкой)
 // ============================================
 float BatteryManager::readVoltage() {
 
@@ -82,14 +127,38 @@ float BatteryManager::readVoltage() {
     }
 
     float raw = (float)sum / BATTERY_ADC_SAMPLES;
-
     float vAdc = (raw / ADC_MAX_VALUE) * BATTERY_ADC_REF_VOLTAGE;
-
     float vBat = vAdc * BATTERY_DIVIDER_RATIO * BATTERY_ADC_CORRECTION;
 
+    // ═══ ОТЛАДКА ═══
+    static unsigned long lastDebug = 0;
+    if (millis() - lastDebug > 60000) {  // Каждую минуту
+        lastDebug = millis();
+        Serial.printf("[BAT DEBUG] Raw:%.0f vGPIO:%.3fV Calc:%.3fV ", 
+                     raw, vAdc, vBat);
+    }
+    // ═══════════════
+
     // Защита от мусора
-    if (vBat < 0.8f)  return 0.0f;
-    if (vBat > 4.5f)  vBat = 4.5f;
+    if (vBat < 0.8f) {
+        Serial.println("Final:0.00V (too low)");
+        return 0.0f;
+    }
+    
+    if (vBat > 4.5f) {
+        // ═══ ОТЛАДКА ═══
+        if (millis() - lastDebug < 100) {
+            Serial.printf("Final:4.50V (capped from %.2fV)\n", vBat);
+        }
+        // ═══════════════
+        vBat = 4.5f;
+    } else {
+        // ═══ ОТЛАДКА ═══
+        if (millis() - lastDebug < 100) {
+            Serial.printf("Final:%.2fV\n", vBat);
+        }
+        // ═══════════════
+    }
 
     return vBat;
 }

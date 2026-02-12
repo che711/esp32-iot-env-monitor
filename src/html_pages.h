@@ -151,6 +151,9 @@ body{padding:10px}
 <div class="info-item"><div class="info-label">⏱️ Time</div><div class="info-value" id="uptime">--</div></div>
 <div class="info-item"><div class="info-label">🧠 RAM</div><div class="info-value" id="freeHeap">--</div></div>
 <div class="info-item"><div class="info-label">📊 CPU</div><div class="info-value" id="cpuUsage">--</div></div>
+<div class="info-item"><div class="info-label">🔋 Battery</div><div class="info-value" id="batteryPercent">--</div></div>
+<div class="info-item"><div class="info-label">⚡ Voltage</div><div class="info-value" id="batteryVoltage">--</div></div>
+<div class="info-item"><div class="info-label">🔌 Power</div><div class="info-value" id="batterySource" style="font-size:12px">--</div></div>
 <div class="info-item"><div class="info-label">📶 SSID</div><div class="info-value" id="ssid" style="font-size:13px">--</div></div>
 <div class="info-item"><div class="info-label"><span id="wifiSignal">📶</span> RSSI</div><div class="info-value" id="rssi">--</div></div>
 <div class="info-item"><div class="info-label">🌐 IP</div><div class="info-value" id="ipAddr" style="font-size:11px">--</div></div>
@@ -336,6 +339,50 @@ document.getElementById('cpuUsage').textContent=d.cpuUsage+'%';
 document.getElementById('ssid').textContent=d.ssid||'--';
 document.getElementById('rssi').textContent=d.rssi+' dBm';
 document.getElementById('ipAddr').textContent=d.ip;
+
+// ═══════════════════════════════════════════════════════
+// Обновление данных батареи
+// ═══════════════════════════════════════════════════════
+if(d.battery){
+const b=d.battery;
+const pElem=document.getElementById('batteryPercent');
+const vElem=document.getElementById('batteryVoltage');
+const sElem=document.getElementById('batterySource');
+
+// Процент с emoji
+let pText=b.percent+'%';
+if(b.isCritical)pText='‼️ '+pText;
+else if(b.isLow)pText='⚠️ '+pText;
+else if(b.percent>=80)pText='🟢 '+pText;
+else if(b.percent>=40)pText='🟡 '+pText;
+else pText='🟠 '+pText;
+pElem.textContent=pText;
+
+// Напряжение
+vElem.textContent=b.voltage+'V';
+
+// Источник питания со статусом
+let sText=b.source;
+if(b.isCharging)sText='⚡ '+sText+' (Charging)';
+else if(b.status==='Fully charged')sText='✓ '+sText+' (Full)';
+else sText='🔋 '+sText;
+sElem.textContent=sText;
+
+// Цвет индикатора
+if(b.isCritical){
+pElem.style.color='#dc3545';
+vElem.style.color='#dc3545';
+}else if(b.isLow){
+pElem.style.color='#ff9800';
+vElem.style.color='#ff9800';
+}else if(b.isCharging){
+pElem.style.color='#28a745';
+vElem.style.color='#28a745';
+}else{
+pElem.style.color='#333';
+vElem.style.color='#333';
+}
+}
 }).catch(e=>console.error(e));
 }
 
