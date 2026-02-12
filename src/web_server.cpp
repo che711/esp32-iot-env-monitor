@@ -6,11 +6,12 @@
 // Внешняя переменная из main.cpp
 extern float g_cpuUsage;
 
-WeatherWebServer::WeatherWebServer(SensorManager* sensor, WiFiManager* wifi)
+WeatherWebServer::WeatherWebServer(SensorManager* sensor, WiFiManager* wifi, BatteryManager* battery)
     : _server(WEB_SERVER_PORT),
       _wsServer(81),  // WebSocket на порту 81
       _sensor(sensor), 
-      _wifi(wifi), 
+      _wifi(wifi),
+      _battery(battery),
       _bootTime(0),
       _requestCount(0) {
 }
@@ -145,7 +146,7 @@ void WeatherWebServer::handleStats() {
     float heapUsagePercent = (float)usedHeap / totalHeap * 100.0;
     
     String json;
-    json.reserve(512);
+    json.reserve(768);  // Увеличено для данных батареи
     
     json = "{";
     json += "\"uptime\":\"" + getUptimeString() + "\"";
@@ -157,6 +158,21 @@ void WeatherWebServer::handleStats() {
     json += ",\"ip\":\"" + _wifi->getIP() + "\"";
     json += ",\"requests\":" + String(_requestCount);
     json += ",\"errors\":" + String(_sensor->getReadErrorCount());
+    
+    // ═══════════════════════════════════════════════════════
+    // Добавление данных о батарее
+    // ═══════════════════════════════════════════════════════
+    json += ",\"battery\":{";
+    json += "\"voltage\":" + String(_battery->getVoltage(), 2);
+    json += ",\"percent\":" + String(_battery->getPercent());
+    json += ",\"status\":\"" + _battery->getStatusString() + "\"";
+    json += ",\"source\":\"" + _battery->getPowerSourceString() + "\"";
+    json += ",\"isCharging\":" + String(_battery->isCharging() ? "true" : "false");
+    json += ",\"isUsb\":" + String(_battery->isUsbConnected() ? "true" : "false");
+    json += ",\"isLow\":" + String(_battery->isLowBattery() ? "true" : "false");
+    json += ",\"isCritical\":" + String(_battery->isCriticalBattery() ? "true" : "false");
+    json += "}";
+    
     json += "}";
     
     setCORSHeaders();

@@ -5,11 +5,12 @@
 #include <WebSocketsServer.h>
 #include "sensor_manager.h"
 #include "wifi_manager.h"
+#include "battery_manager.h"
 #include "calculations.h"
 
 class WeatherWebServer {
 public:
-    WeatherWebServer(SensorManager* sensor, WiFiManager* wifi);
+    WeatherWebServer(SensorManager* sensor, WiFiManager* wifi, BatteryManager* battery);
     
     void begin();
     void handleClient();
@@ -23,6 +24,7 @@ private:
     WebSocketsServer _wsServer;
     SensorManager* _sensor;
     WiFiManager* _wifi;
+    BatteryManager* _battery;
     unsigned long _bootTime;
     unsigned long _requestCount;
     

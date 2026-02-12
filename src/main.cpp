@@ -16,7 +16,7 @@ float g_cpuUsage = 0.0;
 WiFiManager wifiManager(WIFI_SSID, WIFI_PASSWORD);
 SensorManager sensorManager;
 BatteryManager batteryManager(BATTERY_ADC_PIN, BATTERY_CHRG_PIN, BATTERY_STDBY_PIN);
-WeatherWebServer webServer(&sensorManager, &wifiManager);
+WeatherWebServer webServer(&sensorManager, &wifiManager, &batteryManager);
 
 // Timers
 unsigned long lastSensorRead = 0;
