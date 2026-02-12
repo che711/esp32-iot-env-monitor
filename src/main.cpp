@@ -1,7 +1,9 @@
 #include <Arduino.h>
+#include <esp_sleep.h>
 #include "config.h"
 #include "wifi_manager.h"
 #include "sensor_manager.h"
+#include "battery_manager.h"
 #include "web_server.h"
 #include "calculations.h"
 
@@ -13,12 +15,15 @@ float g_cpuUsage = 0.0;
 // Objects
 WiFiManager wifiManager(WIFI_SSID, WIFI_PASSWORD);
 SensorManager sensorManager;
+BatteryManager batteryManager(BATTERY_ADC_PIN, BATTERY_CHRG_PIN, BATTERY_STDBY_PIN);
 WeatherWebServer webServer(&sensorManager, &wifiManager);
 
 // Timers
 unsigned long lastSensorRead = 0;
 unsigned long lastWiFiCheck = 0;
 unsigned long lastStatsUpdate = 0;
+unsigned long lastBatteryCheck = 0;
+unsigned long systemStartTime = 0;
 
 // CPU monitoring
 unsigned long lastCpuCheck = 0;
@@ -36,17 +41,83 @@ void logBoth(const String& message) {
 }
 
 // ============================================
+// Deep Sleep Management
+// ============================================
+void enterDeepSleep(unsigned long duration_us, const char* reason) {
+    Serial.println("\n╔══════════════════════════════════════════╗");
+    Serial.println("║         ENTERING DEEP SLEEP MODE         ║");
+    Serial.println("╚══════════════════════════════════════════╝");
+    Serial.printf("Reason: %s\n", reason);
+    Serial.printf("Duration: %lu seconds\n", duration_us / 1000000ULL);
+    Serial.println();
+    
+    // Отправляем уведомление через WebSocket
+    if (wifiManager.isConnected()) {
+        String msg = "⚠️ DEEP SLEEP: " + String(reason);
+        webServer.broadcastLog(msg);
+        webServer.broadcastLog("Duration: " + String(duration_us / 1000000ULL) + "s");
+        delay(500); // Даем время отправить сообщение
+    }
+    
+    // Сохраняем данные если нужно
+    Serial.println("Shutting down peripherals...");
+    
+    // Конфигурируем таймер пробуждения
+    esp_sleep_enable_timer_wakeup(duration_us);
+    
+    Serial.println("Going to sleep now...");
+    Serial.flush();
+    delay(100);
+    
+    // Уходим в deep sleep
+    esp_deep_sleep_start();
+}
+
+void checkBatteryAndSleep() {
+    // Проверяем только если прошло достаточно времени с момента загрузки
+    unsigned long uptime = millis() - systemStartTime;
+    if (uptime < MIN_UPTIME_BEFORE_SLEEP) {
+        return;
+    }
+    
+    // Не проверяем, если подключено USB
+    if (batteryManager.isUsbConnected()) {
+        return;
+    }
+    
+    // Критический уровень батареи
+    if (batteryManager.isCriticalBattery() && DEEP_SLEEP_ENABLED) {
+        String reason = "Critical battery: " + String(batteryManager.getVoltage(), 2) + "V";
+        enterDeepSleep(DEEP_SLEEP_CRITICAL_DURATION, reason.c_str());
+    }
+    
+    // Низкий уровень батареи (можно добавить дополнительную логику)
+    // if (batteryManager.isLowBattery() && DEEP_SLEEP_ENABLED) {
+    //     String reason = "Low battery: " + String(batteryManager.getVoltage(), 2) + "V";
+    //     enterDeepSleep(DEEP_SLEEP_LOW_DURATION, reason.c_str());
+    // }
+}
+
+// ============================================
 // Functions
 // ============================================
 
 void printSystemInfo() {
     Serial.println();
     Serial.println("╔══════════════════════════════════════════╗");
-    Serial.println("║   ESP32 Super Mini Weather Station       ║");
-    Serial.println("║        AHT10 Sensor v3.0                 ║");
+    Serial.println("║   ESP32-C3 Weather Station v3.1          ║");
+    Serial.println("║   AHT10 + Battery Management             ║");
     Serial.println("╚══════════════════════════════════════════╝");
     Serial.println();
-    Serial.println("=== System information ===");
+    
+    // Проверка причины пробуждения
+    esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+    if (wakeup_reason == ESP_SLEEP_WAKEUP_TIMER) {
+        Serial.println("⏰ Wakeup from DEEP SLEEP (Timer)");
+        Serial.println();
+    }
+    
+    Serial.println("=== System Information ===");
     Serial.printf("Chip Model:     %s\n", ESP.getChipModel());
     Serial.printf("Chip Revision:  %d\n", ESP.getChipRevision());
     Serial.printf("CPU Frequency:  %d MHz\n", ESP.getCpuFreqMHz());
@@ -89,13 +160,14 @@ void printStatus() {
     uint32_t minFreeHeap = ESP.getMinFreeHeap();
 
     Serial.println();
-    Serial.println("=== System status ===");
+    Serial.println("=== System Status ===");
     Serial.printf("Uptime:       %lu sec\n", millis() / 1000);
     Serial.printf("WiFi:         %s (%d dBm)\n",
                   wifiManager.isConnected() ? "Connected" : "Disconnected",
                   wifiManager.getRSSI());
     Serial.printf("Temperature:  %.1f C\n", sensorManager.getTemperature());
     Serial.printf("Humidity:     %.1f%%\n",  sensorManager.getHumidity());
+    Serial.printf("Battery:      %s\n", batteryManager.getSummaryString().c_str());
     Serial.printf("CPU:          %.1f%%\n",  g_cpuUsage);
     Serial.printf("Free Heap:    %u KB\n",   freeHeap / 1024);
     Serial.printf("Requests:     %lu\n",     webServer.getRequestCount());
@@ -105,6 +177,7 @@ void printStatus() {
         webServer.broadcastLog("=== Status Update ===");
         webServer.broadcastLog("T=" + String(sensorManager.getTemperature(), 1) +
                                "C  H=" + String(sensorManager.getHumidity(), 1) + "%");
+        webServer.broadcastLog("Battery: " + batteryManager.getSummaryString());
         #ifdef SOC_TEMP_SENSOR_SUPPORTED
         if (chipTemp > 0)
             webServer.broadcastLog("Chip: " + String(chipTemp, 1) + "C");
@@ -135,25 +208,33 @@ void printStatus() {
 // Setup
 // ============================================
 void setup() {
-    // ── USB CDC Serial init (ESP32-C3 specific) ──────────────────────────────
-    // С флагом ARDUINO_USB_CDC_ON_BOOT=1 Serial — это USB CDC, а не UART.
-    // После Serial.begin() нужно дождаться, пока хост (ПК) откроет COM-порт.
-    // Без этого все Serial.print() до открытия порта теряются.
+    systemStartTime = millis();
+    
+    // USB CDC Serial init (ESP32-C3 specific)
     Serial.begin(SERIAL_BAUD);
     {
         unsigned long t0 = millis();
-        // Ждём готовности не дольше 5 секунд (если монитор не открыт — не зависаем)
         while (!Serial && (millis() - t0 < 5000)) {
             delay(10);
         }
     }
-    delay(300); // буфер на стороне хоста успевает принять первые байты
-    // ─────────────────────────────────────────────────────────────────────────
+    delay(300);
 
     printSystemInfo();
+    
+    // Initialize Battery Manager
+    Serial.println("=== Initializing Battery Manager ===");
+    batteryManager.begin();
+    Serial.println();
+    
+    // Check battery before starting everything else
+    if (batteryManager.isCriticalBattery() && !batteryManager.isUsbConnected()) {
+        Serial.println("⚠️ WARNING: Critical battery level detected!");
+        Serial.println("Device will enter deep sleep after minimal initialization.");
+    }
 
-    // Initializing the sensor
-    Serial.println("=== Initializing the sensor ===");
+    // Initialize sensor
+    Serial.println("=== Initializing Sensor ===");
     if (!sensorManager.begin()) {
         Serial.println();
         Serial.println("╔══════════════════════════════════════════╗");
@@ -168,7 +249,7 @@ void setup() {
         while (1) { delay(250); }
     }
 
-    // Connecting to WiFi
+    // Connect to WiFi
     Serial.println("=== Connecting to WiFi ===");
     if (!wifiManager.begin()) {
         Serial.println("Cannot connect to WiFi");
@@ -176,7 +257,7 @@ void setup() {
     }
 
     // Launch web-server
-    Serial.println("=== Launching the web server ===");
+    Serial.println("=== Launching Web Server ===");
     webServer.begin();
 
     Serial.println();
@@ -195,6 +276,7 @@ void setup() {
         webServer.broadcastLog("╚══════════════════════════════════════════╝");
         webServer.broadcastLog("");
         webServer.broadcastLog("AHT10 sensor: Ready");
+        webServer.broadcastLog("Battery: " + batteryManager.getSummaryString());
         webServer.broadcastLog("WiFi: " + wifiManager.getSSID());
         webServer.broadcastLog("IP: "   + wifiManager.getIP());
         webServer.broadcastLog("Signal: " + String(wifiManager.getRSSI()) +
@@ -220,6 +302,7 @@ void setup() {
         webServer.broadcastLog("");
         webServer.broadcastLog("Monitoring interval: " +
                                String(SENSOR_INTERVAL / 1000) + "s");
+        webServer.broadcastLog("Deep Sleep: " + String(DEEP_SLEEP_ENABLED ? "Enabled" : "Disabled"));
         webServer.broadcastLog("-------------------------");
     }
 }
@@ -230,6 +313,21 @@ void setup() {
 void loop() {
     unsigned long loopStart    = micros();
     unsigned long currentMillis = millis();
+
+    // Check battery status
+    if (currentMillis - lastBatteryCheck >= BATTERY_CHECK_INTERVAL) {
+        lastBatteryCheck = currentMillis;
+        batteryManager.update();
+        
+        // Check if we need to enter deep sleep
+        checkBatteryAndSleep();
+        
+        // Log battery status if low
+        if (batteryManager.isLowBattery() && !batteryManager.isUsbConnected()) {
+            logBoth("⚠️ Low battery: " + String(batteryManager.getVoltage(), 2) + "V (" + 
+                   String(batteryManager.getPercent()) + "%)");
+        }
+    }
 
     // Check WiFi connection
     if (currentMillis - lastWiFiCheck >= WIFI_CHECK_INTERVAL) {
@@ -250,7 +348,7 @@ void loop() {
         webServer.handleClient();
     }
 
-    // Reading data from the sensor
+    // Read sensor data
     if (currentMillis - lastSensorRead >= SENSOR_INTERVAL) {
         lastSensorRead = currentMillis;
 

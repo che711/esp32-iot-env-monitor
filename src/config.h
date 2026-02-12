@@ -12,19 +12,31 @@ inline constexpr int           WIFI_MAX_RETRY = 30;
 inline constexpr unsigned long WIFI_TIMEOUT   = 15000;
 
 // ============================================
-// I2C Configuration (ESP32 Super Mini)
+// I2C Configuration (ESP32-C3 Super Mini)
 // ============================================
 inline constexpr int      I2C_SDA  = 8;
 inline constexpr int      I2C_SCL  = 9;
 inline constexpr uint32_t I2C_FREQ = 100000;
 
 // ============================================
+// GPIO Pin Configuration
+// ============================================
+// LED отключен, чтобы не конфликтовать с I2C_SDA
+inline constexpr int  LED_BUILTIN_PIN = -1;    // Отключен (был конфликт с GPIO8)
+inline constexpr bool LED_ENABLED     = false; // Отключить для экономии энергии
+
+// Battery Manager Pins (TP4056 + делитель напряжения)
+inline constexpr int BATTERY_ADC_PIN  = 0;  // GPIO0 - ADC для измерения напряжения
+inline constexpr int BATTERY_CHRG_PIN = 2;  // GPIO2 - CHRG pin от TP4056
+inline constexpr int BATTERY_STDBY_PIN = 3; // GPIO3 - STDBY pin от TP4056
+
+// ============================================
 // Timing Configuration
 // ============================================
 inline constexpr unsigned long SENSOR_INTERVAL       = 5000;   // Опрос датчика каждые 5 сек
-inline constexpr unsigned long WIFI_CHECK_INTERVAL   = 300000; // Проверка WiFi каждые 300 сек
-//                                                    ^^^^^^ БЫЛО 3000000 (50 мин!) — исправлено
+inline constexpr unsigned long WIFI_CHECK_INTERVAL   = 300000; // Проверка WiFi каждые 5 мин (было 50 мин!)
 inline constexpr unsigned long STATS_UPDATE_INTERVAL = 10000;  // Обновление статистики каждые 10 сек
+inline constexpr unsigned long BATTERY_CHECK_INTERVAL = 30000; // Проверка батареи каждые 30 сек
 
 // ============================================
 // History Configuration
@@ -66,15 +78,8 @@ inline constexpr float HUMID_MIN_VALID = 0.0;
 inline constexpr float HUMID_MAX_VALID = 100.0;
 
 // ============================================
-// LED Configuration
+// Battery Configuration
 // ============================================
-inline constexpr int  LED_BUILTIN_PIN = 8;    // GPIO8 на ESP32 Super Mini
-inline constexpr bool LED_ENABLED     = false; // Отключить для экономии энергии
-
-// ===============================
-// BATTERY CONFIGURATION
-// ===============================
-
 // Количество усреднений ADC
 inline constexpr int BATTERY_ADC_SAMPLES = 20;
 
@@ -85,13 +90,26 @@ inline constexpr float BATTERY_ADC_REF_VOLTAGE = 3.3f;
 inline constexpr float BATTERY_DIVIDER_RATIO = 2.0f;
 
 // Поправочный коэффициент калибровки
-inline constexpr float BATTERY_ADC_CORRECTION = 1.00f;
+inline constexpr float BATTERY_ADC_CORRECTION = 0.944f;
 
-// Порог предупреждения
+// Порог предупреждения (3.5V для Li-Ion)
 inline constexpr float BATTERY_WARN_VOLTAGE = 3.5f;
 
-// Критический порог
+// Критический порог (3.3V для Li-Ion)
 inline constexpr float BATTERY_CRITICAL_VOLTAGE = 3.3f;
 
+// ============================================
+// Deep Sleep Configuration
+// ============================================
+inline constexpr bool  DEEP_SLEEP_ENABLED = true;  // Включить deep sleep при критическом заряде
+
+// Время deep sleep при критическом заряде (5 минут)
+inline constexpr unsigned long DEEP_SLEEP_CRITICAL_DURATION = 5 * 60 * 1000000ULL; // в микросекундах
+
+// Время deep sleep при низком заряде (1 минута)
+inline constexpr unsigned long DEEP_SLEEP_LOW_DURATION = 1 * 60 * 1000000ULL; // в микросекундах
+
+// Минимальное время работы перед deep sleep (30 секунд)
+inline constexpr unsigned long MIN_UPTIME_BEFORE_SLEEP = 30000;
 
 #endif // CONFIG_H
