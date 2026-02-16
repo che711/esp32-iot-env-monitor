@@ -6,7 +6,7 @@
 // ============================================
 // WiFi Configuration
 // ============================================
-inline const char* WIFI_SSID     = "SkyNet";
+inline const char* WIFI_SSID     = "network";
 inline const char* WIFI_PASSWORD = "password";
 inline constexpr int           WIFI_MAX_RETRY = 30;
 inline constexpr unsigned long WIFI_TIMEOUT   = 15000;
@@ -33,9 +33,9 @@ inline constexpr int BATTERY_STDBY_PIN = 3; // GPIO3 - STDBY pin от TP4056
 // ============================================
 // Timing Configuration
 // ============================================
-inline constexpr unsigned long SENSOR_INTERVAL       = 5000;   // Опрос датчика каждые 5 сек
-inline constexpr unsigned long WIFI_CHECK_INTERVAL   = 300000; // Проверка WiFi каждые 5 мин (было 50 мин!)
-inline constexpr unsigned long STATS_UPDATE_INTERVAL = 10000;  // Обновление статистики каждые 10 сек
+inline constexpr unsigned long SENSOR_INTERVAL        = 10000;   // Опрос датчика каждые 10 сек
+inline constexpr unsigned long WIFI_CHECK_INTERVAL    = 300000; // Проверка WiFi каждые 5 мин (было 50 мин!)
+inline constexpr unsigned long STATS_UPDATE_INTERVAL  = 10000;  // Обновление статистики каждые 10 сек
 inline constexpr unsigned long BATTERY_CHECK_INTERVAL = 30000; // Проверка батареи каждые 30 сек
 
 // ============================================
@@ -88,23 +88,6 @@ inline constexpr float BATTERY_ADC_REF_VOLTAGE = 3.3f;
 
 // Делитель 100k / 100k → коэффициент 2.0
 inline constexpr float BATTERY_DIVIDER_RATIO = 2.0f;
-
-// ╔════════════════════════════════════════════════════════════════╗
-// ║  КАЛИБРОВКА ADC - ВАЖНО!                                       ║
-// ╠════════════════════════════════════════════════════════════════╣
-// ║  Было: 3.91 → показывало 4.50V при реальном 4.11V              ║
-// ║  Расчет: 3.91 × (4.11 / 4.50) = 3.91 × 0.9133 = 3.57           ║
-// ║                                                                ║
-// ║  Для точной калибровки:                                        ║
-// ║  1. Измерьте напряжение батареи мультиметром (V_real)          ║
-// ║  2. Посмотрите показания ESP32 в Serial (V_esp32)              ║
-// ║  3. Новый коэффициент = текущий × (V_real / V_esp32)           ║
-// ║                                                                ║
-// ║  Пример:                                                       ║
-// ║  - Мультиметр: 4.11V                                           ║
-// ║  - ESP32 показывает: 4.50V                                     ║
-// ║  - Коэффициент = 3.91 × (4.11/4.50) = 3.57                     ║
-// ╚════════════════════════════════════════════════════════════════╝
 
 inline constexpr float BATTERY_ADC_CORRECTION = 0.944f;
 
