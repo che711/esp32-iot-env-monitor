@@ -16,3 +16,4 @@ Thumbs.db
 
 secrets.h
 .env
+.envmonitor/
