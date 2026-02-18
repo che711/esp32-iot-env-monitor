@@ -167,25 +167,25 @@ setInterval(logToFile, 5 * 60 * 1000);
 
 ```bash
 # Получить текущие данные
-curl http://192.168.1.100/data | jq
+curl http://192.168.1.65/data | jq
 
 # Получить статистику
-curl http://192.168.1.100/stats | jq
+curl http://192.168.1.65/stats | jq
 
 # Получить историю
-curl http://192.168.1.100/history | jq
+curl http://192.168.1.65/history | jq
 
 # Сбросить min/max
-curl http://192.168.1.100/reset
+curl http://192.168.1.65/reset
 
 # Перезагрузить устройство
-curl http://192.168.1.100/reboot
+curl http://192.168.1.65/reboot
 
 # Сохранить данные в файл
-curl http://192.168.1.100/data > weather_data.json
+curl http://192.168.1.65/data > weather_data.json
 
 # Непрерывный мониторинг
-watch -n 3 'curl -s http://192.168.1.100/data | jq ".temperature, .humidity"'
+watch -n 3 'curl -s http://192.168.1.65/data | jq ".temperature, .humidity"'
 ```
 
 ## Интеграция с Home Assistant
