@@ -55,12 +55,14 @@ private:
     int _historyIndex;
     int _historyCount;
     
-    // Hourly history for averages
-    float* _hourlyTempHistory;
-    float* _hourlyHumidHistory;
-    int _hourlyHistoryIndex;
-    int _hourlyHistoryCount;
+    // Running average accumulators (O(1) instead of O(n) per call)
+    double _avgTempAccum;
+    double _avgHumidAccum;
+    int    _avgCount;
     
+    // Internal state for isValid
+    bool _hadFirstRead;
+
     // Error statistics
     int _readErrorCount;
     unsigned long _lastSuccessfulRead;

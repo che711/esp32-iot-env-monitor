@@ -337,6 +337,9 @@ document.getElementById('uptime').textContent=d.uptime;
 document.getElementById('freeHeap').textContent=d.freeHeap;
 document.getElementById('cpuUsage').textContent=d.cpuUsage+'%';
 document.getElementById('ssid').textContent=d.ssid||'--';
+const rssiVal=parseInt(d.rssi);let rssiIcon='📶';
+if(rssiVal>=-60)rssiIcon='📶';else if(rssiVal>=-75)rssiIcon='📶';else rssiIcon='⚠️';
+document.getElementById('wifiSignal').textContent=rssiIcon;
 document.getElementById('rssi').textContent=d.rssi+' dBm';
 document.getElementById('ipAddr').textContent=d.ip;
 
@@ -390,13 +393,15 @@ function updateHistory(){
 fetch('/history').then(r=>r.json()).then(d=>{
 const si=Math.max(0,d.labels.length-60);
 D.labels=d.labels.slice(si);D.temp=d.temp.slice(si);D.humid=d.humid.slice(si);
-D.heat=D.temp.map((t,i)=>{const h=D.humid[i];return t+(0.55*(1-h/100)*(t-14.5));});
-D.dew=D.temp.map((t,i)=>{const h=D.humid[i];return t-(100-h)/5.;});
+// Use server-calculated values (Rothfusz formula) instead of client-side approximations
+D.heat=d.heat?d.heat.slice(si):D.temp;
+D.dew=d.dew?d.dew.slice(si):D.temp;
+if(F){D.temp=D.temp.map(c2f);D.heat=D.heat.map(c2f);D.dew=D.dew.map(c2f);}
 T.data.labels=D.labels;T.data.datasets[0].data=D.temp;T.update();
 H.data.labels=D.labels;H.data.datasets[0].data=D.humid;H.update();
 E.data.labels=D.labels;E.data.datasets[0].data=D.heat;E.update();
 W.data.labels=D.labels;W.data.datasets[0].data=D.dew;W.update();
-const ts=new Date().toLocaleTimeString('ru-RU');
+const ts=new Date().toLocaleTimeString();
 ['Temp','Humid','Heat','Dew'].forEach(id=>document.getElementById('updateTime'+id).textContent=ts);
 }).catch(e=>console.error(e));
 }
@@ -416,7 +421,7 @@ const b=new Blob([JSON.stringify(D)],{type:'application/json'});const a=document
 
 document.addEventListener('DOMContentLoaded',()=>{
 initCharts();initWebSocket();updateData();updateStats();updateHistory();
-iU=setInterval(updateData,3000);iS=setInterval(updateStats,5000);iH=setInterval(updateHistory,10000);
+iU=setInterval(updateData,10000);iS=setInterval(updateStats,10000);iH=setInterval(updateHistory,15000);
 });
 </script>
 </body>

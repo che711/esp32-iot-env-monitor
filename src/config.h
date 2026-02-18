@@ -41,8 +41,8 @@ inline constexpr unsigned long BATTERY_CHECK_INTERVAL = 30000;  // Провер�
 // ============================================
 // History Configuration
 // ============================================
-inline constexpr int HISTORY_SIZE        = 60;   // 60 точек = 5 мин при интервале 5 сек
-inline constexpr int HOURLY_HISTORY_SIZE = 1200; // 1200 точек = 1 час
+inline constexpr int HISTORY_SIZE        = 60;   // 60 points = 10 min at SENSOR_INTERVAL=10s
+// HOURLY_HISTORY_SIZE removed — replaced with O(1) running average in SensorManager
 
 // ============================================
 // Web Server Configuration

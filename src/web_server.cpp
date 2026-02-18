@@ -219,6 +219,19 @@ void WeatherWebServer::handleHistory() {
         json += String(humidHist[i], 1);
     }
     
+    // Dew point and heat index calculated server-side (same formulas as /data)
+    json += "],\"dew\":[";
+    for (int i = 0; i < count; i++) {
+        if (i > 0) json += ",";
+        json += String(WeatherCalculations::calculateDewPoint(tempHist[i], humidHist[i]), 1);
+    }
+    
+    json += "],\"heat\":[";
+    for (int i = 0; i < count; i++) {
+        if (i > 0) json += ",";
+        json += String(WeatherCalculations::calculateHeatIndex(tempHist[i], humidHist[i]), 1);
+    }
+    
     json += "]}";
     
     setCORSHeaders();
