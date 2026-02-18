@@ -6,7 +6,7 @@
 // ============================================
 // WiFi Configuration
 // ============================================
-inline const char* WIFI_SSID     = "network";
+inline const char* WIFI_SSID     = "SkyNet";
 inline const char* WIFI_PASSWORD = "password";
 inline constexpr int           WIFI_MAX_RETRY = 30;
 inline constexpr unsigned long WIFI_TIMEOUT   = 15000;
@@ -33,10 +33,10 @@ inline constexpr int BATTERY_STDBY_PIN = 3; // GPIO3 - STDBY pin от TP4056
 // ============================================
 // Timing Configuration
 // ============================================
-inline constexpr unsigned long SENSOR_INTERVAL        = 10000;   // Опрос датчика каждые 10 сек
+inline constexpr unsigned long SENSOR_INTERVAL        = 10000;  // Опрос датчика каждые 10 сек
 inline constexpr unsigned long WIFI_CHECK_INTERVAL    = 300000; // Проверка WiFi каждые 5 мин (было 50 мин!)
 inline constexpr unsigned long STATS_UPDATE_INTERVAL  = 10000;  // Обновление статистики каждые 10 сек
-inline constexpr unsigned long BATTERY_CHECK_INTERVAL = 30000; // Проверка батареи каждые 30 сек
+inline constexpr unsigned long BATTERY_CHECK_INTERVAL = 30000;  // Проверка батареи каждые 30 сек
 
 // ============================================
 // History Configuration
