@@ -6,23 +6,19 @@ SensorManager::SensorManager()
     : _temperature(0.0), _humidity(0.0),
       _minTemp(TEMP_INIT_MIN), _maxTemp(TEMP_INIT_MAX),
       _minHumid(HUMID_INIT_MIN), _maxHumid(HUMID_INIT_MAX),
-      _historyIndex(0), _historyCount(0), _hourlyHistoryIndex(0), _hourlyHistoryCount(0),
+      _historyIndex(0), _historyCount(0),
+      _avgTempAccum(0.0), _avgHumidAccum(0.0), _avgCount(0),
+      _hadFirstRead(false),
       _readErrorCount(0), _lastSuccessfulRead(0) {
     
-    // Initializing history for a graph
     for(int i = 0; i < HISTORY_SIZE; i++) {
         _tempHistory[i] = 0;
         _humidHistory[i] = 0;
     }
-    
-    // Allocating memory for an hour-long story
-    _hourlyTempHistory = new float[HOURLY_HISTORY_SIZE]();
-    _hourlyHumidHistory = new float[HOURLY_HISTORY_SIZE]();
 }
 
 SensorManager::~SensorManager() {
-    delete[] _hourlyTempHistory;
-    delete[] _hourlyHumidHistory;
+    // Nothing to free — running average needs no heap allocation
 }
 
 bool SensorManager::begin() {
@@ -51,6 +47,11 @@ bool SensorManager::begin() {
         if (validateReading(_temperature, _humidity)) {
             _minTemp = _maxTemp = _temperature;
             _minHumid = _maxHumid = _humidity;
+            _avgTempAccum  = _temperature;
+            _avgHumidAccum = _humidity;
+            _avgCount      = 1;
+            _hadFirstRead  = true;
+            _lastSuccessfulRead = millis();
             Serial.printf("Initial values: T=%.1f°C, H=%.1f%%\n", 
                          _temperature, _humidity);
         }
@@ -83,12 +84,24 @@ bool SensorManager::update() {
     _temperature = newTemp;
     _humidity = newHumid;
     _lastSuccessfulRead = millis();
+    _hadFirstRead = true;
     
     // Updating min/max
     if (_temperature < _minTemp) _minTemp = _temperature;
     if (_temperature > _maxTemp) _maxTemp = _temperature;
     if (_humidity < _minHumid) _minHumid = _humidity;
     if (_humidity > _maxHumid) _maxHumid = _humidity;
+
+    // Incremental running average (O(1), no heap needed)
+    _avgTempAccum  += _temperature;
+    _avgHumidAccum += _humidity;
+    _avgCount++;
+    // Guard against 32-bit overflow after very long uptime (>~1 year at 10s intervals)
+    if (_avgCount > 3000000) {
+        _avgTempAccum  = _temperature;
+        _avgHumidAccum = _humidity;
+        _avgCount      = 1;
+    }
     
     updateHistory();
     
@@ -99,22 +112,13 @@ bool SensorManager::update() {
 }
 
 void SensorManager::updateHistory() {
-    // Updating the history for the chart (3 minutes)
+    // Circular buffer for the last HISTORY_SIZE readings (10-min window at 10s interval)
     _tempHistory[_historyIndex] = _temperature;
     _humidHistory[_historyIndex] = _humidity;
     _historyIndex = (_historyIndex + 1) % HISTORY_SIZE;
     
     if (_historyCount < HISTORY_SIZE) {
         _historyCount++;
-    }
-    
-    // Updating the hourly history
-    _hourlyTempHistory[_hourlyHistoryIndex] = _temperature;
-    _hourlyHumidHistory[_hourlyHistoryIndex] = _humidity;
-    _hourlyHistoryIndex = (_hourlyHistoryIndex + 1) % HOURLY_HISTORY_SIZE;
-    
-    if (_hourlyHistoryCount < HOURLY_HISTORY_SIZE) {
-        _hourlyHistoryCount++;
     }
 }
 
@@ -167,23 +171,13 @@ float SensorManager::getMaxHumid() const {
 }
 
 float SensorManager::getAvgTemp() const {
-    if (_hourlyHistoryCount == 0) return _temperature;
-    
-    float sum = 0;
-    for(int i = 0; i < _hourlyHistoryCount; i++) {
-        sum += _hourlyTempHistory[i];
-    }
-    return sum / _hourlyHistoryCount;
+    if (_avgCount == 0) return _temperature;
+    return (float)(_avgTempAccum / _avgCount);
 }
 
 float SensorManager::getAvgHumid() const {
-    if (_hourlyHistoryCount == 0) return _humidity;
-    
-    float sum = 0;
-    for(int i = 0; i < _hourlyHistoryCount; i++) {
-        sum += _hourlyHumidHistory[i];
-    }
-    return sum / _hourlyHistoryCount;
+    if (_avgCount == 0) return _humidity;
+    return (float)(_avgHumidAccum / _avgCount);
 }
 
 void SensorManager::getHistory(float* tempHist, float* humidHist, int size) const {
@@ -214,7 +208,9 @@ int SensorManager::getHistoryCount() const {
 }
 
 bool SensorManager::isValid() const {
-    // We consider it valid if the last successful reading was no later than 1 minute ago.
+    // Never read yet → not valid
+    if (!_hadFirstRead) return false;
+    // Valid if last successful read was within the last minute
     return (millis() - _lastSuccessfulRead) < 60000;
 }
 
