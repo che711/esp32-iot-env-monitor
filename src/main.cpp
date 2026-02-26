@@ -20,7 +20,7 @@ WeatherWebServer webServer(&sensorManager, &wifiManager, &batteryManager);
 
 // Timers
 unsigned long lastSensorRead = 0;
-unsigned long lastWiFiCheck = 0;
+// lastWiFiCheck удалён — checkConnection() теперь вызывается каждый тик (не блокирует)
 unsigned long lastStatsUpdate = 0;
 unsigned long lastBatteryCheck = 0;
 unsigned long systemStartTime = 0;
@@ -330,23 +330,23 @@ void loop() {
     }
 
     // Check WiFi connection
-    if (currentMillis - lastWiFiCheck >= WIFI_CHECK_INTERVAL) {
-        lastWiFiCheck = currentMillis;
+    // checkConnection() теперь НЕ блокирует — можно вызывать каждый тик.
+    // Внутри она сама ограничивает частоту попыток реконнекта.
+    {
         bool wasConnected = wifiManager.isConnected();
         wifiManager.checkConnection();
-        bool isConnected = wifiManager.isConnected();
-        if (!wasConnected && isConnected)
+        bool isNowConnected = wifiManager.isConnected();
+        if (!wasConnected && isNowConnected)
             logBoth("WiFi reconnected: " + wifiManager.getSSID() +
                     " (" + wifiManager.getIP() + "  " +
                     String(wifiManager.getRSSI()) + " dBm)");
-        else if (wasConnected && !isConnected)
-            logBoth("WiFi connection lost!");
+        else if (wasConnected && !isNowConnected)
+            Serial.println("WiFi connection lost — reconnecting...");
     }
 
-    // Web request processing and WebSocket
-    if (wifiManager.isConnected()) {
-        webServer.handleClient();
-    }
+    // Web request processing and WebSocket.
+    // Вызываем ВСЕГДА — веб-сервер должен отвечать даже во время реконнекта WiFi.
+    webServer.handleClient();
 
     // Read sensor data
     if (currentMillis - lastSensorRead >= SENSOR_INTERVAL) {
