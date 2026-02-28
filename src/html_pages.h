@@ -69,7 +69,7 @@ input:checked+.slider:before{transform:translateX(30px)}
 .comfort-good{background:rgba(255,193,7,.3)}
 .comfort-fair{background:rgba(255,152,0,.3)}
 .comfort-poor{background:rgba(220,53,69,.3)}
-.log-console{background:#1e1e1e;color:#d4d4d4;font-family:'Consolas','Monaco',monospace;font-size:12px;padding:15px;border-radius:8px;height:300px;overflow-y:auto;margin-top:15px}
+.log-console{background:#1e1e1e;color:#d4d4d4;font-family:'Consolas','Monaco',monospace;font-size:14px;padding:18px;border-radius:8px;height:450px;overflow-y:auto;margin-top:15px}
 .log-console::-webkit-scrollbar{width:8px}
 .log-console::-webkit-scrollbar-track{background:#2d2d2d;border-radius:4px}
 .log-console::-webkit-scrollbar-thumb{background:#555;border-radius:4px}
@@ -82,6 +82,24 @@ input:checked+.slider:before{transform:translateX(30px)}
 .ws-status{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px}
 .ws-connected{background:#28a745}
 .ws-disconnected{background:#dc3545}
+
+/* ── Chart toggles ─────────────────────────────────────────── */
+.chart-toggles{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.chart-toggle-btn{display:flex;align-items:center;gap:7px;padding:8px 16px;border:2px solid transparent;border-radius:25px;font-size:13px;font-weight:600;cursor:pointer;transition:all .25s;background:#f0f0f0;color:#666;user-select:none}
+.chart-toggle-btn .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;transition:transform .2s}
+.chart-toggle-btn.active{color:#fff;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.chart-toggle-btn.active .dot{transform:scale(1.3)}
+.chart-toggle-btn:not(.active){opacity:.55}
+.chart-toggle-btn:hover{opacity:1;transform:translateY(-1px)}
+.toggle-temp.active  {background:linear-gradient(135deg,#667eea,#764ba2);border-color:#667eea}
+.toggle-humid.active {background:linear-gradient(135deg,#4facfe,#00f2fe);border-color:#4facfe}
+.toggle-heat.active  {background:linear-gradient(135deg,#fa709a,#fee140);border-color:#fa709a}
+.toggle-dew.active   {background:linear-gradient(135deg,#f093fb,#f5576c);border-color:#f093fb}
+.toggle-temp  .dot{background:linear-gradient(135deg,#667eea,#764ba2)}
+.toggle-humid .dot{background:linear-gradient(135deg,#4facfe,#00f2fe)}
+.toggle-heat  .dot{background:linear-gradient(135deg,#fa709a,#fee140)}
+.toggle-dew   .dot{background:linear-gradient(135deg,#f093fb,#f5576c)}
+
 @media(max-width:768px){
 body{padding:10px}
 .header{padding:20px}
@@ -89,6 +107,8 @@ body{padding:10px}
 .info-grid{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
 .buttons{grid-template-columns:1fr}
 .chart-row.double{grid-template-columns:1fr}
+.chart-toggles{gap:6px}
+.chart-toggle-btn{padding:7px 12px;font-size:12px}
 }
 </style>
 </head>
@@ -178,250 +198,281 @@ body{padding:10px}
 </div>
 </div>
 
+<!-- ══════════════ COMBINED CHART ══════════════ -->
 <div class="chart-row">
 <div class="chart-card">
-<h3 style="margin-bottom:15px;color:#333">🌡️ Temperature</h3>
-<canvas id="tempChart"></canvas>
-<div class="update-time">Updated: <span id="updateTimeTemp">--</span></div>
+<h3 style="margin-bottom:15px;color:#333">📈 History</h3>
+<div class="chart-toggles">
+<button class="chart-toggle-btn toggle-temp active" onclick="toggleSeries(0,this)">
+<span class="dot"></span>🌡️ Temperature
+</button>
+<button class="chart-toggle-btn toggle-humid active" onclick="toggleSeries(1,this)">
+<span class="dot"></span>💧 Humidity
+</button>
+<button class="chart-toggle-btn toggle-heat active" onclick="toggleSeries(2,this)">
+<span class="dot"></span>🌡️ Heat Index
+</button>
+<button class="chart-toggle-btn toggle-dew active" onclick="toggleSeries(3,this)">
+<span class="dot"></span>💧 Dew Point
+</button>
 </div>
-</div>
-
-<div class="chart-row">
-<div class="chart-card">
-<h3 style="margin-bottom:15px;color:#333">💧 Humidity</h3>
-<canvas id="humidChart"></canvas>
-<div class="update-time">Updated: <span id="updateTimeHumid">--</span></div>
-</div>
-</div>
-
-<div class="chart-row">
-<div class="chart-card">
-<h3 style="margin-bottom:15px;color:#333">🌡️ Heat Index</h3>
-<canvas id="heatChart"></canvas>
-<div class="update-time">Updated: <span id="updateTimeHeat">--</span></div>
-</div>
-</div>
-
-<div class="chart-row">
-<div class="chart-card">
-<h3 style="margin-bottom:15px;color:#333">💧 Dew point</h3>
-<canvas id="dewChart"></canvas>
-<div class="update-time">Updated: <span id="updateTimeDew">--</span></div>
+<canvas id="combinedChart"></canvas>
+<div class="update-time">Updated: <span id="updateTimeCombined">--</span></div>
 </div>
 </div>
 
 </div>
 
 <script>
-let F=false,D={labels:[],temp:[],humid:[],heat:[],dew:[]},T,H,E,W,errCnt=0,iU,iS,iH;
+let F=false,D={labels:[],temp:[],humid:[],heat:[],dew:[]},C,errCnt=0,iU,iS,iH;
 let ws,autoscroll=true,maxLogs=500;
-const O={responsive:!0,maintainAspectRatio:!1,interaction:{mode:'index',intersect:!1},plugins:{legend:{display:!1},tooltip:{backgroundColor:'rgba(0,0,0,.8)',padding:15,titleFont:{size:14,weight:'bold'},bodyFont:{size:14},borderWidth:2,callbacks:{title:c=>'Время: '+c[0].label,label:c=>c.dataset.label+': '+c.parsed.y.toFixed(1)}}},scales:{x:{grid:{color:'rgba(0,0,0,.05)',drawBorder:!1},ticks:{font:{size:11},maxRotation:0,autoSkip:!0,maxTicksLimit:10}},y:{grid:{drawBorder:!1},ticks:{font:{size:12}}}},animation:{duration:750,easing:'easeInOutQuart',delay:0}};
+
+// Dataset configs
+const DS_CFG=[
+  {key:'temp', label:'Temperature',  border:'#667eea', bg:'rgba(102,126,234,.12)', yLabel:'°C / %'},
+  {key:'humid',label:'Humidity',     border:'#4facfe', bg:'rgba(79,172,254,.12)',  yLabel:'°C / %'},
+  {key:'heat', label:'Heat Index',   border:'#fa709a', bg:'rgba(250,112,154,.12)', yLabel:'°C / %'},
+  {key:'dew',  label:'Dew Point',    border:'#f093fb', bg:'rgba(240,147,251,.12)', yLabel:'°C / %'},
+];
+
+const BASE_OPT={
+  responsive:true,
+  maintainAspectRatio:false,
+  interaction:{mode:'index',intersect:false},
+  plugins:{
+    legend:{display:false},
+    tooltip:{
+      backgroundColor:'rgba(20,20,30,.92)',
+      padding:14,
+      titleFont:{size:13,weight:'bold'},
+      bodyFont:{size:13},
+      borderColor:'rgba(255,255,255,.1)',
+      borderWidth:1,
+      callbacks:{
+        title:c=>'⏱ '+c[0].label,
+        label:c=>{
+          const units=['°C','%','°C','°C'];
+          return ' '+c.dataset.label+': '+c.parsed.y.toFixed(1)+' '+units[c.datasetIndex];
+        }
+      }
+    }
+  },
+  scales:{
+    x:{
+      grid:{color:'rgba(0,0,0,.05)',drawBorder:false},
+      ticks:{font:{size:11},maxRotation:0,autoSkip:true,maxTicksLimit:10}
+    },
+    y:{
+      position:'right',
+      grid:{drawBorder:false},
+      ticks:{font:{size:12}},
+      title:{display:true,text:'°C / %'}
+    }
+  },
+  animation:{duration:600,easing:'easeInOutQuart'}
+};
 
 function initWebSocket(){
-const proto=window.location.protocol==='https:'?'wss:':'ws:';
-const wsUrl=`${proto}//${window.location.hostname}:81/`;
-ws=new WebSocket(wsUrl);
-
-ws.onopen=()=>{
-document.getElementById('wsStatus').className='ws-status ws-connected';
-document.getElementById('wsStatusText').textContent='Connected';
-addLog('WebSocket connected','info');
-};
-
-ws.onclose=()=>{
-document.getElementById('wsStatus').className='ws-status ws-disconnected';
-document.getElementById('wsStatusText').textContent='Отключено';
-addLog('WebSocket disconnected, reconnecting...','warning');
-setTimeout(initWebSocket,3000);
-};
-
-ws.onerror=(e)=>{
-addLog('WebSocket error','error');
-};
-
-ws.onmessage=(e)=>{
-addLog(e.data,'info');
-};
+  const proto=window.location.protocol==='https:'?'wss:':'ws:';
+  ws=new WebSocket(`${proto}//${window.location.hostname}:81/`);
+  ws.onopen=()=>{
+    document.getElementById('wsStatus').className='ws-status ws-connected';
+    document.getElementById('wsStatusText').textContent='Connected';
+    addLog('WebSocket connected','info');
+  };
+  ws.onclose=()=>{
+    document.getElementById('wsStatus').className='ws-status ws-disconnected';
+    document.getElementById('wsStatusText').textContent='Отключено';
+    addLog('WebSocket disconnected, reconnecting...','warning');
+    setTimeout(initWebSocket,3000);
+  };
+  ws.onerror=()=>addLog('WebSocket error','error');
+  ws.onmessage=e=>addLog(e.data,'info');
 }
 
 function addLog(msg,type='info'){
-const console=document.getElementById('logConsole');
-const line=document.createElement('div');
-line.className=`log-line log-${type}`;
-const time=new Date().toLocaleTimeString('ru-RU');
-line.textContent=`[${time}] ${msg}`;
-console.appendChild(line);
-
-while(console.children.length>maxLogs){
-console.removeChild(console.firstChild);
-}
-
-if(autoscroll){
-console.scrollTop=console.scrollHeight;
-}
+  const con=document.getElementById('logConsole');
+  const line=document.createElement('div');
+  line.className=`log-line log-${type}`;
+  line.textContent=`[${new Date().toLocaleTimeString('ru-RU')}] ${msg}`;
+  con.appendChild(line);
+  while(con.children.length>maxLogs)con.removeChild(con.firstChild);
+  if(autoscroll)con.scrollTop=con.scrollHeight;
 }
 
 function clearLogs(){
-document.getElementById('logConsole').innerHTML='';
-addLog('Logs cleared','success');
+  document.getElementById('logConsole').innerHTML='';
+  addLog('Logs cleared','success');
 }
 
 function toggleAutoscroll(){
-autoscroll=!autoscroll;
-document.getElementById('autoscrollIcon').textContent=autoscroll?'📌':'📍';
+  autoscroll=!autoscroll;
+  document.getElementById('autoscrollIcon').textContent=autoscroll?'📌':'📍';
 }
 
 function initCharts(){
-const tc=document.getElementById('tempChart').getContext('2d');
-T=new Chart(tc,{type:'line',data:{labels:D.labels,datasets:[{label:'Temperature (°C)',data:D.temp,borderColor:'#667eea',backgroundColor:'rgba(102,126,234,.15)',tension:.4,fill:!0,borderWidth:5,pointRadius:4}]},options:{...O,scales:{...O.scales,y:{...O.scales.y,position:'right',title:{display:!0,text:'°C'}}}}});
+  const ctx=document.getElementById('combinedChart').getContext('2d');
+  C=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:D.labels,
+      datasets:DS_CFG.map(cfg=>({
+        label:cfg.label,
+        data:[],
+        borderColor:cfg.border,
+        backgroundColor:cfg.bg,
+        tension:.4,
+        fill:true,
+        borderWidth:3,
+        pointRadius:3,
+        pointHoverRadius:6,
+      }))
+    },
+    options:BASE_OPT
+  });
+}
 
-const hc=document.getElementById('humidChart').getContext('2d');
-H=new Chart(hc,{type:'line',data:{labels:D.labels,datasets:[{label:'Humidity (%)',data:D.humid,borderColor:'#4facfe',backgroundColor:'rgba(79,172,254,.15)',tension:.4,fill:!0,borderWidth:5,pointRadius:4}]},options:{...O,scales:{...O.scales,y:{...O.scales.y,position:'right',title:{display:!0,text:'%'}}}}});
-
-const ec=document.getElementById('heatChart').getContext('2d');
-E=new Chart(ec,{type:'line',data:{labels:D.labels,datasets:[{label:'Heat Index (°C)',data:D.heat,borderColor:'#fa709a',backgroundColor:'rgba(250,112,154,.15)',tension:.4,fill:!0,borderWidth:5,pointRadius:4}]},options:{...O,scales:{...O.scales,y:{...O.scales.y,position:'right',title:{display:!0,text:'°C'}}}}});
-
-const dc=document.getElementById('dewChart').getContext('2d');
-W=new Chart(dc,{type:'line',data:{labels:D.labels,datasets:[{label:'Dew point (°C)',data:D.dew,borderColor:'#f093fb',backgroundColor:'rgba(240,147,251,.15)',tension:.4,fill:!0,borderWidth:5,pointRadius:4}]},options:{...O,scales:{...O.scales,y:{...O.scales.y,position:'right',title:{display:!0,text:'°C'}}}}});
+// Toggle a dataset on/off
+function toggleSeries(idx,btn){
+  const meta=C.getDatasetMeta(idx);
+  meta.hidden=!meta.hidden;
+  btn.classList.toggle('active',!meta.hidden);
+  C.update();
 }
 
 function c2f(c){return c*9/5+32}
 function toggleUnit(){F=!F;updateDisplay()}
 
 function updateDisplay(){
-document.querySelectorAll('#tempUnit,#minTempUnit,#maxTempUnit,#avgTempUnit,#dewPointUnit,#heatIndexUnit').forEach(e=>e.textContent=F?'°F':'°C');
-T.options.scales.y.title.text=F?'°F':'°C';
-E.options.scales.y.title.text=F?'°F':'°C';
-W.options.scales.y.title.text=F?'°F':'°C';
-T.update();E.update();W.update();updateData();
+  document.querySelectorAll('#tempUnit,#minTempUnit,#maxTempUnit,#avgTempUnit,#dewPointUnit,#heatIndexUnit').forEach(e=>e.textContent=F?'°F':'°C');
+  // Update temp/heat/dew Y-axis label
+  C.options.scales.y.title.text=F?'°F / %':'°C / %';
+  C.update();
+  updateData();
 }
 
-function getComfort(v, isTemp) {
-if (isTemp) {
-if (v >= 20 && v <= 24) return { l: 'excellent', t: '✅ Optimal' };
-if (v >= 18 && v <= 26) return { l: 'good', t: '👍 Comfortable' };
-return { l: 'poor', t: '❌ Uncomfortable' };
-} else {
-// Улучшенная логика влажности
-if (v >= 40 && v <= 60) return { l: 'excellent', t: '✅ Optimal' };
-if (v >= 30 && v <= 70) return { l: 'good', t: '👍 Normal' };
-return { l: 'poor', t: '❌ Uncomfortable' };
-}
+function getComfort(v,isTemp){
+  if(isTemp){
+    if(v>=20&&v<=24)return{l:'excellent',t:'✅ Optimal'};
+    if(v>=18&&v<=26)return{l:'good',t:'👍 Comfortable'};
+    return{l:'poor',t:'❌ Uncomfortable'};
+  }else{
+    if(v>=40&&v<=60)return{l:'excellent',t:'✅ Optimal'};
+    if(v>=30&&v<=70)return{l:'good',t:'👍 Normal'};
+    return{l:'poor',t:'❌ Uncomfortable'};
+  }
 }
 
 function updateData(){
-fetch('/data').then(r=>r.json()).then(d=>{
-const t=F?c2f(d.temperature):d.temperature,minT=F?c2f(d.minTemp):d.minTemp,maxT=F?c2f(d.maxTemp):d.maxTemp,avgT=F?c2f(d.avgTemp):d.avgTemp,dewP=F?c2f(d.dewPoint):d.dewPoint,heatI=F?c2f(d.heatIndex):d.heatIndex;
-document.getElementById('temperature').textContent=t.toFixed(1);
-document.getElementById('humidity').textContent=d.humidity.toFixed(1);
-document.getElementById('minTemp').textContent=minT.toFixed(1);
-document.getElementById('maxTemp').textContent=maxT.toFixed(1);
-document.getElementById('avgTemp').textContent=avgT.toFixed(1);
-document.getElementById('minHumid').textContent=d.minHumid.toFixed(1);
-document.getElementById('maxHumid').textContent=d.maxHumid.toFixed(1);
-document.getElementById('avgHumid').textContent=d.avgHumid.toFixed(1);
-document.getElementById('dewPoint').textContent=dewP.toFixed(1);
-document.getElementById('heatIndex').textContent=heatI.toFixed(1);
-const tc=getComfort(d.temperature,!0),hc=getComfort(d.humidity,!1);
-const te=document.getElementById('tempComfort');te.textContent=tc.t;te.className='comfort-indicator comfort-'+tc.l;
-const he=document.getElementById('humidComfort');he.textContent=hc.t;he.className='comfort-indicator comfort-'+hc.l;
-document.getElementById('lastUpdate').textContent='Updated: '+new Date().toLocaleTimeString('ru-RU');
-errCnt=0;document.getElementById('statusBadge').className='status online';
-document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Connected</span>';
-}).catch(e=>{errCnt++;if(errCnt>2){document.getElementById('statusBadge').className='status offline';document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Disconnected</span>';}});
+  fetch('/data').then(r=>r.json()).then(d=>{
+    const t=F?c2f(d.temperature):d.temperature;
+    const minT=F?c2f(d.minTemp):d.minTemp,maxT=F?c2f(d.maxTemp):d.maxTemp,avgT=F?c2f(d.avgTemp):d.avgTemp;
+    const dewP=F?c2f(d.dewPoint):d.dewPoint,heatI=F?c2f(d.heatIndex):d.heatIndex;
+    document.getElementById('temperature').textContent=t.toFixed(1);
+    document.getElementById('humidity').textContent=d.humidity.toFixed(1);
+    document.getElementById('minTemp').textContent=minT.toFixed(1);
+    document.getElementById('maxTemp').textContent=maxT.toFixed(1);
+    document.getElementById('avgTemp').textContent=avgT.toFixed(1);
+    document.getElementById('minHumid').textContent=d.minHumid.toFixed(1);
+    document.getElementById('maxHumid').textContent=d.maxHumid.toFixed(1);
+    document.getElementById('avgHumid').textContent=d.avgHumid.toFixed(1);
+    document.getElementById('dewPoint').textContent=dewP.toFixed(1);
+    document.getElementById('heatIndex').textContent=heatI.toFixed(1);
+    const tc=getComfort(d.temperature,true),hc=getComfort(d.humidity,false);
+    const te=document.getElementById('tempComfort');te.textContent=tc.t;te.className='comfort-indicator comfort-'+tc.l;
+    const he=document.getElementById('humidComfort');he.textContent=hc.t;he.className='comfort-indicator comfort-'+hc.l;
+    document.getElementById('lastUpdate').textContent='Updated: '+new Date().toLocaleTimeString('ru-RU');
+    errCnt=0;
+    document.getElementById('statusBadge').className='status online';
+    document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Connected</span>';
+  }).catch(()=>{
+    errCnt++;
+    if(errCnt>2){
+      document.getElementById('statusBadge').className='status offline';
+      document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Disconnected</span>';
+    }
+  });
 }
 
 function updateStats(){
-fetch('/stats').then(r=>r.json()).then(d=>{
-document.getElementById('uptime').textContent=d.uptime;
-document.getElementById('freeHeap').textContent=d.freeHeap;
-document.getElementById('cpuUsage').textContent=d.cpuUsage+'%';
-document.getElementById('ssid').textContent=d.ssid||'--';
-const rssiVal=parseInt(d.rssi);let rssiIcon='📶';
-if(rssiVal>=-60)rssiIcon='📶';else if(rssiVal>=-75)rssiIcon='📶';else rssiIcon='⚠️';
-document.getElementById('wifiSignal').textContent=rssiIcon;
-document.getElementById('rssi').textContent=d.rssi+' dBm';
-document.getElementById('ipAddr').textContent=d.ip;
-
-// ═══════════════════════════════════════════════════════
-// Обновление данных батареи
-// ═══════════════════════════════════════════════════════
-if(d.battery){
-const b=d.battery;
-const pElem=document.getElementById('batteryPercent');
-const vElem=document.getElementById('batteryVoltage');
-const sElem=document.getElementById('batterySource');
-
-// Процент с emoji
-let pText=b.percent+'%';
-if(b.isCritical)pText='‼️ '+pText;
-else if(b.isLow)pText='⚠️ '+pText;
-else if(b.percent>=80)pText='🟢 '+pText;
-else if(b.percent>=40)pText='🟡 '+pText;
-else pText='🟠 '+pText;
-pElem.textContent=pText;
-
-// Напряжение
-vElem.textContent=b.voltage+'V';
-
-// Источник питания со статусом
-let sText=b.source;
-if(b.isCharging)sText='⚡ '+sText+' (Charging)';
-else if(b.status==='Fully charged')sText='✓ '+sText+' (Full)';
-else sText='🔋 '+sText;
-sElem.textContent=sText;
-
-// Цвет индикатора
-if(b.isCritical){
-pElem.style.color='#dc3545';
-vElem.style.color='#dc3545';
-}else if(b.isLow){
-pElem.style.color='#ff9800';
-vElem.style.color='#ff9800';
-}else if(b.isCharging){
-pElem.style.color='#28a745';
-vElem.style.color='#28a745';
-}else{
-pElem.style.color='#333';
-vElem.style.color='#333';
-}
-}
-}).catch(e=>console.error(e));
+  fetch('/stats').then(r=>r.json()).then(d=>{
+    document.getElementById('uptime').textContent=d.uptime;
+    document.getElementById('freeHeap').textContent=d.freeHeap;
+    document.getElementById('cpuUsage').textContent=d.cpuUsage+'%';
+    document.getElementById('ssid').textContent=d.ssid||'--';
+    const rssiVal=parseInt(d.rssi);
+    document.getElementById('wifiSignal').textContent=rssiVal>=-60?'📶':rssiVal>=-75?'📶':'⚠️';
+    document.getElementById('rssi').textContent=d.rssi+' dBm';
+    document.getElementById('ipAddr').textContent=d.ip;
+    if(d.battery){
+      const b=d.battery;
+      let pText=b.percent+'%';
+      if(b.isCritical)pText='‼️ '+pText;
+      else if(b.isLow)pText='⚠️ '+pText;
+      else if(b.percent>=80)pText='🟢 '+pText;
+      else if(b.percent>=40)pText='🟡 '+pText;
+      else pText='🟠 '+pText;
+      document.getElementById('batteryPercent').textContent=pText;
+      document.getElementById('batteryVoltage').textContent=b.voltage+'V';
+      let sText=b.source;
+      if(b.isCharging)sText='⚡ '+sText+' (Charging)';
+      else if(b.status==='Fully charged')sText='✓ '+sText+' (Full)';
+      else sText='🔋 '+sText;
+      document.getElementById('batterySource').textContent=sText;
+      const pE=document.getElementById('batteryPercent'),vE=document.getElementById('batteryVoltage');
+      if(b.isCritical){pE.style.color='#dc3545';vE.style.color='#dc3545';}
+      else if(b.isLow){pE.style.color='#ff9800';vE.style.color='#ff9800';}
+      else if(b.isCharging){pE.style.color='#28a745';vE.style.color='#28a745';}
+      else{pE.style.color='#333';vE.style.color='#333';}
+    }
+  }).catch(e=>console.error(e));
 }
 
 function updateHistory(){
-fetch('/history').then(r=>r.json()).then(d=>{
-const si=Math.max(0,d.labels.length-60);
-D.labels=d.labels.slice(si);D.temp=d.temp.slice(si);D.humid=d.humid.slice(si);
-// Use server-calculated values (Rothfusz formula) instead of client-side approximations
-D.heat=d.heat?d.heat.slice(si):D.temp;
-D.dew=d.dew?d.dew.slice(si):D.temp;
-if(F){D.temp=D.temp.map(c2f);D.heat=D.heat.map(c2f);D.dew=D.dew.map(c2f);}
-T.data.labels=D.labels;T.data.datasets[0].data=D.temp;T.update();
-H.data.labels=D.labels;H.data.datasets[0].data=D.humid;H.update();
-E.data.labels=D.labels;E.data.datasets[0].data=D.heat;E.update();
-W.data.labels=D.labels;W.data.datasets[0].data=D.dew;W.update();
-const ts=new Date().toLocaleTimeString();
-['Temp','Humid','Heat','Dew'].forEach(id=>document.getElementById('updateTime'+id).textContent=ts);
-}).catch(e=>console.error(e));
+  fetch('/history').then(r=>r.json()).then(d=>{
+    const si=Math.max(0,d.labels.length-60);
+    const labels=d.labels.slice(si);
+    const temp=d.temp.slice(si);
+    const humid=d.humid.slice(si);
+    const heat=(d.heat?d.heat:d.temp).slice(si);
+    const dew=(d.dew?d.dew:d.temp).slice(si);
+
+    // Apply unit conversion for temperature-based series
+    const convTemp=arr=>F?arr.map(c2f):arr;
+
+    C.data.labels=labels;
+    C.data.datasets[0].data=convTemp(temp);
+    C.data.datasets[1].data=humid;           // humidity stays in %
+    C.data.datasets[2].data=convTemp(heat);
+    C.data.datasets[3].data=convTemp(dew);
+    C.update();
+
+    document.getElementById('updateTimeCombined').textContent=new Date().toLocaleTimeString();
+  }).catch(e=>console.error(e));
 }
 
 function resetMinMax(){if(confirm('Reset min/max?')){fetch('/reset').then(()=>updateData());}}
 function rebootDevice(){if(confirm('Reboot?')){fetch('/reboot');}}
 
 function exportCSV(){
-let csv='Time,Temp,Humid\n';
-for(let i=0;i<D.labels.length;i++)csv+=`${D.labels[i]},${D.temp[i]},${D.humid[i]}\n`;
-const b=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='weather.csv';a.click();
+  let csv='Time,Temp,Humid,HeatIndex,DewPoint\n';
+  const td=C.data.datasets;
+  for(let i=0;i<C.data.labels.length;i++)
+    csv+=`${C.data.labels[i]},${(td[0].data[i]||'').toString()},${(td[1].data[i]||'').toString()},${(td[2].data[i]||'').toString()},${(td[3].data[i]||'').toString()}\n`;
+  const b=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='weather.csv';a.click();
 }
 
 function exportJSON(){
-const b=new Blob([JSON.stringify(D)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='weather.json';a.click();
+  const b=new Blob([JSON.stringify({labels:C.data.labels,temp:C.data.datasets[0].data,humid:C.data.datasets[1].data,heat:C.data.datasets[2].data,dew:C.data.datasets[3].data})],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='weather.json';a.click();
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-initCharts();initWebSocket();updateData();updateStats();updateHistory();
-iU=setInterval(updateData,10000);iS=setInterval(updateStats,10000);iH=setInterval(updateHistory,15000);
+  initCharts();initWebSocket();updateData();updateStats();updateHistory();
+  iU=setInterval(updateData,10000);
+  iS=setInterval(updateStats,10000);
+  iH=setInterval(updateHistory,15000);
 });
 </script>
 </body>
