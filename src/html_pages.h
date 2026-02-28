@@ -204,6 +204,51 @@ input:checked+.slider:before{transform:translateX(30px)}
 .tr-btn.active{background:var(--info-border);color:#fff}
 .tr-btn:hover{transform:translateY(-1px)}
 
+/* ── Particle canvas ──────────────────────────────────────────── */
+#particleCanvas{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0;transition:opacity .6s ease}
+#particleCanvas.visible{opacity:1}
+.container{position:relative;z-index:1}
+
+/* ── Sparkline ────────────────────────────────────────────────── */
+.sparkline-wrap{margin-top:12px;padding:10px 0 4px;border-top:1px solid rgba(255,255,255,.15)}
+.sparkline-label{font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+canvas.sparkline{height:44px!important;min-height:44px!important;max-height:44px!important;width:100%!important;display:block}
+
+/* ── Settings panel ───────────────────────────────────────────── */
+.settings-btn{position:fixed;top:72px;right:18px;z-index:999;background:var(--bg-card);border:none;border-radius:50%;width:46px;height:46px;font-size:20px;cursor:pointer;box-shadow:var(--shadow);transition:all .3s;display:flex;align-items:center;justify-content:center}
+.settings-btn:hover{transform:scale(1.12) rotate(30deg);box-shadow:var(--shadow-hover)}
+.settings-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;backdrop-filter:blur(4px)}
+.settings-backdrop.open{display:block}
+.settings-panel{position:fixed;top:0;right:0;height:100%;width:min(320px,90vw);background:var(--bg-card);z-index:1001;box-shadow:-8px 0 32px rgba(0,0,0,.25);padding:30px 24px;overflow-y:auto;transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1)}
+.settings-panel.open{transform:translateX(0)}
+.settings-panel h2{color:var(--text-main);font-size:18px;margin-bottom:6px}
+.settings-desc{color:var(--text-sub);font-size:12px;margin-bottom:22px}
+.settings-close{position:absolute;top:20px;right:20px;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-sub);transition:color .2s}
+.settings-close:hover{color:var(--text-main)}
+.settings-item{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid rgba(128,128,128,.12)}
+.settings-item:last-child{border-bottom:none}
+.settings-item-label{color:var(--text-main);font-size:14px;font-weight:600}
+.settings-item-sub{color:var(--text-sub);font-size:11px;margin-top:2px}
+/* iOS-style switch for settings */
+.sw{position:relative;display:inline-block;width:48px;height:26px;flex-shrink:0}
+.sw input{opacity:0;width:0;height:0}
+.sw-track{position:absolute;inset:0;background:#ccc;border-radius:13px;transition:.3s;cursor:pointer}
+.sw-track:before{position:absolute;content:'';height:20px;width:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.sw input:checked+.sw-track{background:#667eea}
+.sw input:checked+.sw-track:before{transform:translateX(22px)}
+body.dark .sw-track{background:#444}
+
+/* ── Chart card ───────────────────────────────────────────────── */
+.chart-card{position:relative}
+
+/* ── Countdown bar ────────────────────────────────────────────── */
+.countdown-wrap{margin-top:12px;display:flex;align-items:center;gap:10px}
+.countdown-bar-track{flex:1;height:4px;background:rgba(0,0,0,.08);border-radius:2px;overflow:hidden}
+body.dark .countdown-bar-track{background:rgba(255,255,255,.1)}
+.countdown-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,#667eea,#764ba2);transition:background .4s}
+.countdown-bar-fill.warn{background:linear-gradient(90deg,#f7971e,#ffd200)}
+.countdown-text{font-size:12px;font-weight:600;color:var(--text-sub);white-space:nowrap;min-width:60px;text-align:right;transition:color .3s}
+
 /* ── Responsive ───────────────────────────────────────────────── */
 @media(max-width:768px){
 body{padding:10px}
@@ -214,13 +259,61 @@ body{padding:10px}
 .chart-row.double{grid-template-columns:1fr}
 .chart-toggle-btn{padding:7px 12px;font-size:12px}
 .theme-toggle{top:10px;right:10px;width:40px;height:40px;font-size:17px}
+.settings-btn{top:62px;right:10px;width:40px;height:40px;font-size:17px}
 }
 </style>
 </head>
 <body>
 
+<!-- Particle canvas (weather effect) -->
+<canvas id="particleCanvas"></canvas>
+
 <!-- Dark/light theme toggle (fixed) -->
 <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
+
+<!-- Settings button -->
+<button class="settings-btn" onclick="openSettings()" title="Block settings">⚙️</button>
+
+<!-- Settings panel -->
+<div class="settings-backdrop" id="settingsBackdrop" onclick="closeSettings()"></div>
+<div class="settings-panel" id="settingsPanel">
+<button class="settings-close" onclick="closeSettings()">✕</button>
+<h2>⚙️ Display</h2>
+<div class="settings-desc">Show or hide sections</div>
+<div class="settings-item">
+<div><div class="settings-item-label">🌡️ Sensor tiles</div><div class="settings-item-sub">Temperature, Humidity cards</div></div>
+<label class="sw"><input type="checkbox" id="sw-sensors" checked onchange="toggleBlock('sensorRows',this.checked)"><span class="sw-track"></span></label>
+</div>
+<div class="settings-item">
+<div><div class="settings-item-label">💻 System & Control</div><div class="settings-item-sub">RAM, CPU, Battery, WiFi</div></div>
+<label class="sw"><input type="checkbox" id="sw-system" checked onchange="toggleBlock('systemRow',this.checked)"><span class="sw-track"></span></label>
+</div>
+<div class="settings-item">
+<div><div class="settings-item-label">📟 Serial Monitor</div><div class="settings-item-sub">WebSocket log console</div></div>
+<label class="sw"><input type="checkbox" id="sw-serial" checked onchange="toggleBlock('serialRow',this.checked)"><span class="sw-track"></span></label>
+</div>
+<div class="settings-item">
+<div><div class="settings-item-label">📈 History chart</div><div class="settings-item-sub">Time-series graph</div></div>
+<label class="sw"><input type="checkbox" id="sw-chart" checked onchange="toggleBlock('chartRow',this.checked)"><span class="sw-track"></span></label>
+</div>
+<div class="settings-item">
+<div><div class="settings-item-label">🌧 Weather particles</div><div class="settings-item-sub">Background rain / snow effect</div></div>
+<label class="sw"><input type="checkbox" id="sw-particles" checked onchange="setParticlesEnabled(this.checked)"><span class="sw-track"></span></label>
+</div>
+<div class="settings-item" style="flex-direction:column;align-items:flex-start;gap:10px">
+<div class="settings-item-label" style="font-size:12px">Preview mode</div>
+<div style="display:flex;flex-wrap:wrap;gap:7px">
+<button class="log-filter-btn" onclick="forceParticle('none',this)"  style="opacity:1">🌤 Off</button>
+<button class="log-filter-btn" onclick="forceParticle('drizzle',this)">🌦 Drizzle</button>
+<button class="log-filter-btn" onclick="forceParticle('rain',this)"  >🌧 Rain</button>
+<button class="log-filter-btn" onclick="forceParticle('heavy',this)" >⛈ Heavy</button>
+<button class="log-filter-btn" onclick="forceParticle('snow',this)"  >❄️ Snow</button>
+</div>
+<div style="font-size:11px;color:var(--text-sub)">Auto mode uses sensor data</div>
+</div>
+</div>
+
+<!-- Fullscreen backdrop removed -->
 
 <div class="container">
 
@@ -232,9 +325,14 @@ body{padding:10px}
 <div id="statusBadge" class="status online"><div class="status-dot"></div><span>Connected</span></div>
 <div id="lastUpdateBadge" class="status" style="background:#e3f2fd;color:#1976d2"><span id="lastUpdate">Loading...</span></div>
 </div>
+<div class="countdown-wrap">
+<div class="countdown-bar-track"><div class="countdown-bar-fill" id="cdFill" style="width:100%"></div></div>
+<span class="countdown-text" id="cdText">—</span>
+</div>
 </div>
 
 <!-- Sensor tiles -->
+<div id="sensorRows">
 <div class="chart-row double">
 <div class="card sensor-card temp-card">
 <div class="sensor-header"><div class="sensor-label">🌡️ Temperature</div></div>
@@ -250,6 +348,7 @@ body{padding:10px}
 <span class="toggle-label">°F</span>
 </div>
 <div id="tempComfort" class="comfort-indicator"></div>
+<div class="sparkline-wrap"><div class="sparkline-label">Trend</div><canvas class="sparkline" id="spkTemp"></canvas></div>
 </div>
 <div class="card sensor-card humidity-card">
 <div class="sensor-header"><div class="sensor-label">💧 Humidity</div></div>
@@ -260,6 +359,7 @@ body{padding:10px}
 <div><div style="font-size:10px">⬆️ Max</div><div class="minmax-value"><span id="maxHumid">--</span>%</div></div>
 </div>
 <div id="humidComfort" class="comfort-indicator"></div>
+<div class="sparkline-wrap"><div class="sparkline-label">Trend</div><canvas class="sparkline" id="spkHumid"></canvas></div>
 </div>
 </div>
 
@@ -268,16 +368,19 @@ body{padding:10px}
 <div class="sensor-header"><div class="sensor-label">💧 Dew point</div></div>
 <div class="sensor-value"><span id="dewPoint">--</span><span class="sensor-unit" id="dewPointUnit">°C</span></div>
 <div class="sensor-description">Condensation temperature of water vapor</div>
+<div class="sparkline-wrap"><div class="sparkline-label">Trend</div><canvas class="sparkline" id="spkDew"></canvas></div>
 </div>
 <div class="card sensor-card heatindex-card">
 <div class="sensor-header"><div class="sensor-label">🌡️ Heat Index</div></div>
 <div class="sensor-value"><span id="heatIndex">--</span><span class="sensor-unit" id="heatIndexUnit">°C</span></div>
 <div class="sensor-description">Temperature perception based on humidity</div>
+<div class="sparkline-wrap"><div class="sparkline-label">Trend</div><canvas class="sparkline" id="spkHeat"></canvas></div>
 </div>
 </div>
+</div><!-- /sensorRows -->
 
 <!-- System & Control -->
-<div class="chart-row">
+<div id="systemRow" class="chart-row">
 <div class="card">
 <h3 style="margin-bottom:15px">💻 System & Control</h3>
 <div class="info-grid">
@@ -329,7 +432,7 @@ body{padding:10px}
 </div>
 
 <!-- Serial Monitor -->
-<div class="chart-row">
+<div id="serialRow" class="chart-row">
 <div class="card">
 <h3>📟 Serial Monitor <span class="ws-status" id="wsStatus"></span><span id="wsStatusText" style="font-size:12px;color:var(--text-sub)">Connecting...</span></h3>
 <div class="log-filters">
@@ -348,8 +451,8 @@ body{padding:10px}
 </div>
 
 <!-- Combined history chart -->
-<div class="chart-row">
-<div class="chart-card">
+<div id="chartRow" class="chart-row">
+<div class="chart-card" id="chartCard">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
 <h3>📈 History</h3>
 <div class="time-range">
@@ -655,10 +758,13 @@ function updateData(){
     document.getElementById('heatIndex').textContent=heatI.toFixed(1);
     // Animate card backgrounds based on raw °C values
     updateCardColors(d.temperature,d.humidity,d.heatIndex,d.dewPoint);
+    // Weather particles
+    setWeatherFromData(d.temperature,d.humidity);
     const tc=getComfort(d.temperature,true),hc=getComfort(d.humidity,false);
     const te=document.getElementById('tempComfort');te.textContent=tc.t;te.className='comfort-indicator comfort-'+tc.l;
     const he=document.getElementById('humidComfort');he.textContent=hc.t;he.className='comfort-indicator comfort-'+hc.l;
     document.getElementById('lastUpdate').textContent='Updated: '+new Date().toLocaleTimeString('ru-RU');
+    startCountdown();
     errCnt=0;
     document.getElementById('statusBadge').className='status online';
     document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Connected</span>';
@@ -717,6 +823,7 @@ function updateHistory(){
     rawHistory.heat=d.heat||d.temp;
     rawHistory.dew=d.dew||d.temp;
     renderChart();
+    updateSparklines();
   }).catch(e=>console.error(e));
 }
 
@@ -740,12 +847,297 @@ function exportJSON(){
   a.download='weather.json';a.click();
 }
 
+/* ══════════════════════════════════════════════════════════════
+   SPARKLINES
+══════════════════════════════════════════════════════════════ */
+const sparkCharts={};
+function initSparklines(){
+  const cfgs=[
+    {id:'spkTemp', color:'rgba(255,255,255,.9)', fill:'rgba(255,255,255,.15)'},
+    {id:'spkHumid',color:'rgba(255,255,255,.9)', fill:'rgba(255,255,255,.15)'},
+    {id:'spkDew',  color:'rgba(255,255,255,.9)', fill:'rgba(255,255,255,.15)'},
+    {id:'spkHeat', color:'rgba(255,255,255,.9)', fill:'rgba(255,255,255,.15)'},
+  ];
+  cfgs.forEach(cfg=>{
+    const el=document.getElementById(cfg.id);
+    if(!el)return;
+    sparkCharts[cfg.id]=new Chart(el.getContext('2d'),{
+      type:'line',
+      data:{labels:[],datasets:[{data:[],borderColor:cfg.color,backgroundColor:cfg.fill,borderWidth:2,pointRadius:0,tension:.4,fill:true}]},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{enabled:false}},
+        scales:{x:{display:false},y:{display:false}},
+        animation:{duration:400},
+        events:[]
+      }
+    });
+  });
+}
+
+function updateSparklines(){
+  if(!rawHistory.temp.length)return;
+  const n=20; // last 20 points
+  const sl=arr=>arr.slice(-n);
+  const c2fA=arr=>F?arr.map(v=>v*9/5+32):arr;
+  const pairs=[
+    ['spkTemp', c2fA(sl(rawHistory.temp))],
+    ['spkHumid',sl(rawHistory.humid)],
+    ['spkDew',  c2fA(sl(rawHistory.dew))],
+    ['spkHeat', c2fA(sl(rawHistory.heat))],
+  ];
+  pairs.forEach(([id,data])=>{
+    const sc=sparkCharts[id];
+    if(!sc)return;
+    sc.data.labels=data.map((_,i)=>i);
+    sc.data.datasets[0].data=data;
+    sc.update('none');
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SETTINGS PANEL
+══════════════════════════════════════════════════════════════ */
+const BLOCK_PREFS_KEY='envBlockPrefs';
+function openSettings(){
+  document.getElementById('settingsBackdrop').classList.add('open');
+  document.getElementById('settingsPanel').classList.add('open');
+}
+function closeSettings(){
+  document.getElementById('settingsBackdrop').classList.remove('open');
+  document.getElementById('settingsPanel').classList.remove('open');
+}
+function toggleBlock(id,visible){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.style.transition='opacity .3s, max-height .4s';
+  el.style.opacity=visible?'1':'0';
+  el.style.maxHeight=visible?'9999px':'0';
+  el.style.overflow='hidden';
+  // Save pref
+  const prefs=JSON.parse(localStorage.getItem(BLOCK_PREFS_KEY)||'{}');
+  prefs[id]=visible;
+  localStorage.setItem(BLOCK_PREFS_KEY,JSON.stringify(prefs));
+}
+function applyBlockPrefs(){
+  const prefs=JSON.parse(localStorage.getItem(BLOCK_PREFS_KEY)||'{}');
+  const map={sensorRows:'sw-sensors',systemRow:'sw-system',serialRow:'sw-serial',chartRow:'sw-chart'};
+  Object.entries(map).forEach(([blockId,swId])=>{
+    if(prefs[blockId]===false){
+      const sw=document.getElementById(swId);
+      if(sw) sw.checked=false;
+      toggleBlock(blockId,false);
+    }
+  });
+}
+
+
+
+/* ══════════════════════════════════════════════════════════════
+   PARTICLE WEATHER EFFECT
+══════════════════════════════════════════════════════════════ */
+let particlesEnabled=true;
+let pRAF=null;
+let pCanvas, pCtx;
+let particles=[];
+let pMode='none';
+let pForced=false; // true = manual override, don't auto-change
+
+function initParticles(){
+  pCanvas=document.getElementById('particleCanvas');
+  pCtx=pCanvas.getContext('2d');
+  resizeParticleCanvas();
+  window.addEventListener('resize',resizeParticleCanvas);
+  // Restore saved prefs
+  const prefs=JSON.parse(localStorage.getItem(BLOCK_PREFS_KEY)||'{}');
+  if(prefs.particles===false){
+    const sw=document.getElementById('sw-particles');
+    if(sw) sw.checked=false;
+    particlesEnabled=false;
+  }
+  if(prefs.pForced&&prefs.pMode&&prefs.pMode!=='none'){
+    pForced=true;
+    updateParticleMode(prefs.pMode);
+    // Highlight correct preview button
+    document.querySelectorAll('[onclick^="forceParticle"]').forEach(b=>{
+      b.classList.toggle('active',b.getAttribute('onclick').includes("'"+prefs.pMode+"'"));
+    });
+  }
+}
+
+function forceParticle(mode, btn){
+  pForced=(mode!=='none');
+  document.querySelectorAll('[onclick^="forceParticle"]').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  updateParticleMode(mode);
+  // Save forced mode
+  const prefs=JSON.parse(localStorage.getItem(BLOCK_PREFS_KEY)||'{}');
+  prefs.pForced=pForced; prefs.pMode=mode;
+  localStorage.setItem(BLOCK_PREFS_KEY,JSON.stringify(prefs));
+}
+
+function setParticlesEnabled(on){
+  particlesEnabled=on;
+  const prefs=JSON.parse(localStorage.getItem(BLOCK_PREFS_KEY)||'{}');
+  prefs.particles=on;
+  localStorage.setItem(BLOCK_PREFS_KEY,JSON.stringify(prefs));
+  if(!on){
+    if(pCanvas) pCanvas.classList.remove('visible');
+    particles=[];
+    if(pRAF){cancelAnimationFrame(pRAF);pRAF=null;}
+  } else {
+    updateParticleMode(pMode);
+  }
+}
+
+function resizeParticleCanvas(){
+  if(!pCanvas) return;
+  pCanvas.width=window.innerWidth;
+  pCanvas.height=window.innerHeight;
+}
+
+function updateParticleMode(mode){
+  pMode=mode;
+  if(!particlesEnabled||!pCanvas) return;
+  particles=[];
+  if(mode==='none'){
+    pCanvas.classList.remove('visible');
+    if(pRAF){cancelAnimationFrame(pRAF);pRAF=null;}
+    return;
+  }
+  pCanvas.classList.add('visible');
+  const count={rain:150,heavy:220,drizzle:60,snow:90}[mode]||80;
+  for(let i=0;i<count;i++) particles.push(makeParticle(mode,true));
+  if(!pRAF) animateParticles();
+}
+
+function makeParticle(mode,randomY=false){
+  const W=pCanvas.width, H=pCanvas.height;
+  if(mode==='rain'||mode==='heavy'||mode==='drizzle'){
+    const heavy=mode==='heavy';
+    const vy=heavy?14+Math.random()*8:mode==='rain'?9+Math.random()*5:3+Math.random()*2.5;
+    const vx=vy*0.18;
+    return{
+      x:Math.random()*(W+100)-50,
+      y:randomY?Math.random()*H*1.2:-Math.random()*50,
+      vy, vx,
+      len:vy*(mode==='drizzle'?1.2:1.8),
+      w:heavy?2:mode==='rain'?1.5:1,
+      alpha:heavy?0.55+Math.random()*0.25:mode==='rain'?0.35+Math.random()*0.25:0.2+Math.random()*0.2,
+      hue:heavy?200:210,
+    };
+  } else { // snow
+    return{
+      x:Math.random()*W,
+      y:randomY?Math.random()*H:-10,
+      vy:0.4+Math.random()*1.0,
+      vx:(Math.random()-0.5)*0.3,
+      r:1.5+Math.random()*3.5,
+      alpha:0.55+Math.random()*0.35,
+      drift:Math.random()*Math.PI*2,
+      driftSpeed:0.008+Math.random()*0.015,
+      sparkle:Math.random()*Math.PI*2,
+    };
+  }
+}
+
+function drawRaindrop(p){
+  const tx=p.x-p.vx*(p.len/p.vy);
+  const ty=p.y-p.len;
+  const grad=pCtx.createLinearGradient(tx,ty,p.x,p.y);
+  grad.addColorStop(0,`hsla(${p.hue},80%,80%,0)`);
+  grad.addColorStop(1,`hsla(${p.hue},80%,88%,${p.alpha})`);
+  pCtx.strokeStyle=grad;
+  pCtx.lineWidth=p.w;
+  pCtx.lineCap='round';
+  pCtx.beginPath();
+  pCtx.moveTo(tx,ty);
+  pCtx.lineTo(p.x,p.y);
+  pCtx.stroke();
+}
+
+function drawSnowflake(p,now){
+  const sparkle=0.7+0.3*Math.sin(now*0.003+p.sparkle);
+  const grd=pCtx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*2.5);
+  grd.addColorStop(0,`rgba(220,240,255,${p.alpha*sparkle*0.9})`);
+  grd.addColorStop(0.5,`rgba(200,225,255,${p.alpha*sparkle*0.3})`);
+  grd.addColorStop(1,'rgba(200,225,255,0)');
+  pCtx.beginPath();
+  pCtx.arc(p.x,p.y,p.r*2.5,0,Math.PI*2);
+  pCtx.fillStyle=grd;
+  pCtx.fill();
+  pCtx.beginPath();
+  pCtx.arc(p.x,p.y,p.r,0,Math.PI*2);
+  pCtx.fillStyle=`rgba(235,248,255,${p.alpha*sparkle})`;
+  pCtx.fill();
+}
+
+function animateParticles(){
+  if(!pCanvas){return;}
+  pRAF=requestAnimationFrame(animateParticles);
+  const W=pCanvas.width, H=pCanvas.height;
+  pCtx.clearRect(0,0,W,H);
+  const now=performance.now();
+  particles.forEach((p,i)=>{
+    if(pMode==='snow'){
+      p.drift+=p.driftSpeed;
+      p.x+=Math.sin(p.drift)*0.6+p.vx;
+      p.y+=p.vy;
+      drawSnowflake(p,now);
+      if(p.y>H+12||p.x<-12||p.x>W+12) particles[i]=makeParticle('snow');
+    } else {
+      p.x+=p.vx; p.y+=p.vy;
+      drawRaindrop(p);
+      if(p.y>H+20||p.x>W+50) particles[i]=makeParticle(pMode);
+    }
+  });
+}
+
+function setWeatherFromData(tempC,humid){
+  if(pForced) return; // respect manual override
+  let mode;
+  if(tempC<=2) mode='snow';
+  else if(humid>=90) mode='heavy';
+  else if(humid>=75) mode='rain';
+  else if(humid>=60) mode='drizzle';
+  else mode='none';
+  if(mode!==pMode) updateParticleMode(mode);
+}
+
+/* ── Countdown timer ───────────────────────────────────────────── */
+const CD_TOTAL=10000; // ms — matches updateData interval
+let cdStart=0;
+let cdRAF=null;
+
+function startCountdown(){
+  cdStart=performance.now();
+  if(!cdRAF) tickCountdown();
+}
+
+function tickCountdown(){
+  cdRAF=requestAnimationFrame(tickCountdown);
+  const elapsed=performance.now()-cdStart;
+  const remaining=Math.max(0,CD_TOTAL-elapsed);
+  const pct=(remaining/CD_TOTAL)*100;
+  const secs=Math.ceil(remaining/1000);
+  const fill=document.getElementById('cdFill');
+  const text=document.getElementById('cdText');
+  if(!fill||!text) return;
+  fill.style.width=pct+'%';
+  fill.classList.toggle('warn',secs<=3&&remaining>0);
+  text.textContent=remaining>50?'in '+secs+'s':'updating…';
+}
+
 /* ── Init ──────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded',()=>{
   applyTheme();
+  applyBlockPrefs();
   initCharts();
+  initSparklines();
+  initParticles();
   initWebSocket();
   updateData();updateStats();updateHistory();
+  startCountdown();
   iU=setInterval(updateData,10000);
   iS=setInterval(updateStats,10000);
   iH=setInterval(updateHistory,15000);
