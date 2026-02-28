@@ -69,12 +69,25 @@ body.dark #lastUpdateBadge{background:rgba(25,118,210,.2)!important;color:#90caf
 .card{background:var(--bg-card);backdrop-filter:blur(10px);border-radius:12px;padding:25px;box-shadow:var(--shadow);transition:background .3s,transform .3s,box-shadow .3s}
 .card:hover{transform:translateY(-3px);box-shadow:var(--shadow-hover)}
 .card h3{color:var(--text-main);transition:color .3s}
-.sensor-card{color:#fff;position:relative;overflow:hidden}
+.sensor-card{color:#fff;position:relative;overflow:hidden;transition:background 2s ease}
 .sensor-card::before{content:'';position:absolute;top:-50%;right:-50%;width:200%;height:200%;background:radial-gradient(circle,rgba(255,255,255,.1) 0%,transparent 70%);pointer-events:none}
+/* Shimmer that slides across card */
+.sensor-card::after{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.07) 50%,transparent 60%);background-size:200% 100%;animation:shimmer 4s linear infinite;pointer-events:none}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .temp-card    {background:linear-gradient(135deg,#667eea 0%,#764ba2 100%)}
 .humidity-card{background:linear-gradient(135deg,#4facfe 0%,#00f2fe 100%)}
 .dewpoint-card{background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%)}
 .heatindex-card{background:linear-gradient(135deg,#fa709a 0%,#fee140 100%)}
+
+/* ── WiFi bars widget ─────────────────────────────────────────── */
+.wifi-widget{display:flex;align-items:center;gap:10px}
+.wifi-bars{display:flex;align-items:flex-end;gap:3px;height:20px}
+.wifi-bar{width:6px;border-radius:2px 2px 0 0;transition:background-color .6s ease}
+.wifi-bar:nth-child(1){height:5px}
+.wifi-bar:nth-child(2){height:10px}
+.wifi-bar:nth-child(3){height:15px}
+.wifi-bar:nth-child(4){height:20px}
+.wifi-rssi-label{font-size:10px;color:var(--text-sub);margin-top:2px}
 .sensor-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
 .sensor-label{font-size:14px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600}
 .sensor-value{font-size:clamp(40px,8vw,52px);font-weight:700;text-align:center;margin:15px 0}
@@ -289,7 +302,21 @@ body{padding:10px}
 </div>
 
 <div class="info-item"><div class="info-label">📶 SSID</div><div class="info-value" id="ssid" style="font-size:13px">--</div></div>
-<div class="info-item"><div class="info-label"><span id="wifiSignal">📶</span> RSSI</div><div class="info-value" id="rssi">--</div></div>
+<div class="info-item">
+<div class="info-label">📡 WiFi Signal</div>
+<div class="wifi-widget">
+<div class="wifi-bars">
+<div class="wifi-bar" id="wb1"></div>
+<div class="wifi-bar" id="wb2"></div>
+<div class="wifi-bar" id="wb3"></div>
+<div class="wifi-bar" id="wb4"></div>
+</div>
+<div>
+<div class="info-value" id="rssi">--</div>
+<div class="wifi-rssi-label" id="rssiLabel">--</div>
+</div>
+</div>
+</div>
 <div class="info-item"><div class="info-label">🌐 IP</div><div class="info-value" id="ipAddr" style="font-size:11px">--</div></div>
 </div>
 <div class="buttons">
@@ -519,7 +546,77 @@ function renderChart(){
   document.getElementById('updateTimeCombined').textContent=new Date().toLocaleTimeString();
 }
 
-/* ── Data fetchers ─────────────────────────────────────────── */
+/* ── Card colour animation ──────────────────────────────────── */
+// Interpolate two hex colours by t∈[0,1]
+function lerpHex(a,b,t){
+  const h=s=>parseInt(s,16);
+  const r=v=>Math.round(v).toString(16).padStart(2,'0');
+  const [ar,ag,ab]=[h(a.slice(1,3)),h(a.slice(3,5)),h(a.slice(5,7))];
+  const [br,bg,bb]=[h(b.slice(1,3)),h(b.slice(3,5)),h(b.slice(5,7))];
+  return '#'+r(ar+(br-ar)*t)+r(ag+(bg-ag)*t)+r(ab+(bb-ab)*t);
+}
+// Map a value through colour stops [{at,c1,c2}]
+function valueToGradient(val,stops){
+  const n=stops.length;
+  if(val<=stops[0].at) return `linear-gradient(135deg,${stops[0].c1},${stops[0].c2})`;
+  if(val>=stops[n-1].at) return `linear-gradient(135deg,${stops[n-1].c1},${stops[n-1].c2})`;
+  for(let i=0;i<n-1;i++){
+    if(val>=stops[i].at&&val<stops[i+1].at){
+      const t=(val-stops[i].at)/(stops[i+1].at-stops[i].at);
+      return `linear-gradient(135deg,${lerpHex(stops[i].c1,stops[i+1].c1,t)},${lerpHex(stops[i].c2,stops[i+1].c2,t)})`;
+    }
+  }
+}
+const TEMP_STOPS=[
+  {at:0,  c1:'#00c6fb',c2:'#005bea'}, // freezing — ice blue
+  {at:10, c1:'#43e97b',c2:'#38f9d7'}, // cool — mint
+  {at:22, c1:'#667eea',c2:'#764ba2'}, // comfortable — purple (original)
+  {at:30, c1:'#f7971e',c2:'#ffd200'}, // warm — amber
+  {at:40, c1:'#f5515f',c2:'#9f041b'}, // hot — red
+];
+const HUMID_STOPS=[
+  {at:0,  c1:'#f7971e',c2:'#ffd200'}, // bone dry — amber
+  {at:30, c1:'#96fbc4',c2:'#f9f586'}, // dry-ok — lime
+  {at:50, c1:'#4facfe',c2:'#00f2fe'}, // ideal — cyan (original)
+  {at:75, c1:'#0575e6',c2:'#021b79'}, // humid — deep blue
+  {at:100,c1:'#0c0c0c',c2:'#1a3a5c'}, // saturated — near black
+];
+const HEAT_STOPS=[
+  {at:0,  c1:'#00c6fb',c2:'#005bea'},
+  {at:20, c1:'#f7971e',c2:'#ffd200'},
+  {at:28, c1:'#fa709a',c2:'#fee140'}, // original
+  {at:35, c1:'#f5515f',c2:'#fa7740'},
+  {at:45, c1:'#8b0000',c2:'#ff2400'},
+];
+const DEW_STOPS=[
+  {at:-10,c1:'#a8edea',c2:'#fed6e3'}, // very dry
+  {at:10, c1:'#f093fb',c2:'#f5576c'}, // original
+  {at:20, c1:'#4facfe',c2:'#00f2fe'},
+  {at:26, c1:'#1a6dff',c2:'#c822ff'}, // muggy
+];
+function updateCardColors(tempC,humid,heatC,dewC){
+  document.querySelector('.temp-card').style.background=valueToGradient(tempC,TEMP_STOPS);
+  document.querySelector('.humidity-card').style.background=valueToGradient(humid,HUMID_STOPS);
+  document.querySelector('.heatindex-card').style.background=valueToGradient(heatC,HEAT_STOPS);
+  document.querySelector('.dewpoint-card').style.background=valueToGradient(dewC,DEW_STOPS);
+}
+
+/* ── WiFi bars ──────────────────────────────────────────────── */
+function updateWifiBars(rssi){
+  let active,color,label;
+  if(rssi>=-55){active=4;color='#28a745';label='Excellent'}
+  else if(rssi>=-65){active=3;color='#5cb85c';label='Good'}
+  else if(rssi>=-75){active=2;color='#ffc107';label='Fair'}
+  else if(rssi>=-85){active=1;color='#ff9800';label='Weak'}
+  else{active=1;color='#dc3545';label='Very weak'}
+  const dim='rgba(150,150,150,0.18)';
+  ['wb1','wb2','wb3','wb4'].forEach((id,i)=>{
+    document.getElementById(id).style.backgroundColor=i<active?color:dim;
+  });
+  document.getElementById('rssiLabel').textContent=label;
+}
+
+
 function c2f(c){return c*9/5+32}
 function toggleUnit(){F=!F;updateDisplay()}
 
@@ -556,6 +653,8 @@ function updateData(){
     document.getElementById('avgHumid').textContent=d.avgHumid.toFixed(1);
     document.getElementById('dewPoint').textContent=dewP.toFixed(1);
     document.getElementById('heatIndex').textContent=heatI.toFixed(1);
+    // Animate card backgrounds based on raw °C values
+    updateCardColors(d.temperature,d.humidity,d.heatIndex,d.dewPoint);
     const tc=getComfort(d.temperature,true),hc=getComfort(d.humidity,false);
     const te=document.getElementById('tempComfort');te.textContent=tc.t;te.className='comfort-indicator comfort-'+tc.l;
     const he=document.getElementById('humidComfort');he.textContent=hc.t;he.className='comfort-indicator comfort-'+hc.l;
@@ -579,8 +678,8 @@ function updateStats(){
     document.getElementById('cpuUsage').textContent=d.cpuUsage+'%';
     document.getElementById('ssid').textContent=d.ssid||'--';
     const rv=parseInt(d.rssi);
-    document.getElementById('wifiSignal').textContent=rv>=-60?'📶':rv>=-75?'📶':'⚠️';
     document.getElementById('rssi').textContent=d.rssi+' dBm';
+    updateWifiBars(rv);
     document.getElementById('ipAddr').textContent=d.ip;
 
     /* Battery visual */
