@@ -89,7 +89,7 @@ inline constexpr float BATTERY_ADC_REF_VOLTAGE = 3.3f;
 // Делитель 100k / 100k → коэффициент 2.0
 inline constexpr float BATTERY_DIVIDER_RATIO = 2.0f;
 
-inline constexpr float BATTERY_ADC_CORRECTION = 0.944f;
+inline constexpr float BATTERY_ADC_CORRECTION = 0.897f;
 
 // Порог предупреждения (3.5V для Li-Ion)
 inline constexpr float BATTERY_WARN_VOLTAGE = 3.5f;

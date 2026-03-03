@@ -163,10 +163,15 @@ void BatteryManager::update() {
 
     _percent = voltageToPercent(_voltage);
     readChargeStatus();
-}
 
-// ============================================
-// Компенсация нелинейности ADC
+    // Во время зарядки TP4056 подаёт напряжение выше 4.20V на клеммы.
+    // ADC читает напряжение зарядника, а не реальный SoC батареи.
+    // Порог 4.25V — выше нормального полного заряда (4.20V),
+    // но ниже типичного напряжения зарядника в фазе CC (4.30–4.39V).
+    if (_chargeStatus == ChargeStatus::CHARGING && _voltage > 4.25f) {
+        _percent = voltageToPercent(4.20f);
+    }
+}
 // Интерполяция по таблице ADC_NONLIN_TABLE
 // ============================================
 float BatteryManager::adcNonlinCorrection(float vAdc) const {
