@@ -710,10 +710,10 @@ function updateCardColors(tc,h,hc,dc){
 /* ===== WIFI BARS ===== */
 function updateWifiBars(rssi){
   var active,color,label;
-  if(rssi>=-55){active=4;color='#28a745';label='Excellent';}
-  else if(rssi>=-65){active=3;color='#5cb85c';label='Good';}
-  else if(rssi>=-75){active=2;color='#ffc107';label='Fair';}
-  else if(rssi>=-85){active=1;color='#ff9800';label='Weak';}
+  if(rssi>=-50){active=4;color='#28a745';label='Excellent';}
+  else if(rssi>=-60){active=3;color='#5cb85c';label='Good';}
+  else if(rssi>=-70){active=2;color='#ffc107';label='Fair';}
+  else if(rssi>=-80){active=1;color='#ff9800';label='Weak';}
   else{active=1;color='#dc3545';label='Very weak';}
   var dim='rgba(150,150,150,0.18)';
   ['wb1','wb2','wb3','wb4'].forEach(function(id,i){
@@ -815,19 +815,31 @@ function updateStats(){
       var b=d.battery;
       var pct=Math.max(0,Math.min(100,b.percent));
       var fill=document.getElementById('batteryFill');
-      fill.style.width=pct+'%';
-      fill.className='battery-fill '+(b.isCharging?'charging':b.isCritical?'critical':b.isLow?'low':pct<60?'mid':'good');
-      var pTxt=pct+'%';
-      if(b.isCritical)pTxt='\u203C\uFE0F '+pTxt;
-      else if(b.isLow)pTxt='\u26A0\uFE0F '+pTxt;
-      else if(b.isCharging)pTxt='\u26A1 '+pTxt;
-      else if(pct>=80)pTxt='\uD83D\uDFE2 '+pTxt;
-      document.getElementById('batteryPercent').textContent=pTxt;
-      document.getElementById('batteryVoltage').textContent=b.voltage+'V';
-      var sTxt=b.source;
-      if(b.isCharging)sTxt='Charging...';
-      else if(b.status==='Fully charged')sTxt='Full';
-      document.getElementById('batterySource').textContent=sTxt;
+      // Внешнее питание: через TP4056 (isCharging/isUsb) ИЛИ напрямую на клеммы (voltage > 4.25V)
+      var isExternalPower=b.isCharging||b.isUsb||(b.voltage>4.25);
+      if(isExternalPower){
+        // Питание от сети — показываем статус USB, не процент
+        fill.style.width='100%';
+        fill.className='battery-fill charging';
+        document.getElementById('batteryPercent').textContent='\u26A1 USB Power';
+        var voltTxt=b.voltage+'V';
+        if(b.voltage>4.25)voltTxt=b.voltage+'V (external)';
+        document.getElementById('batteryVoltage').textContent=voltTxt;
+        var sTxt=b.isCharging?'Charging...':(b.isUsb?'Fully charged':'Direct power');
+        document.getElementById('batterySource').textContent=sTxt;
+      } else {
+        fill.style.width=pct+'%';
+        fill.className='battery-fill '+(b.isCritical?'critical':b.isLow?'low':pct<60?'mid':'good');
+        var pTxt=pct+'%';
+        if(b.isCritical)pTxt='\u203C\uFE0F '+pTxt;
+        else if(b.isLow)pTxt='\u26A0\uFE0F '+pTxt;
+        else if(pct>=80)pTxt='\uD83D\uDFE2 '+pTxt;
+        document.getElementById('batteryPercent').textContent=pTxt;
+        document.getElementById('batteryVoltage').textContent=b.voltage+'V';
+        var sTxt=b.source;
+        if(b.status==='Fully charged')sTxt='Full';
+        document.getElementById('batterySource').textContent=sTxt;
+      }
     }
   }).catch(function(e){console.error(e);});
 }
@@ -1009,4 +1021,3 @@ document.addEventListener('DOMContentLoaded',function(){
 )rawliteral";
 
 #endif
-
