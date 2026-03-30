@@ -10,33 +10,33 @@ A modern weather station based on the **ESP32 Super Mini** with the **AHT10** se
 
 ### 🎯 Functions
 - ✅ Real-time temperature and humidity monitoring
-- 📊 Три интерактивных графика (температура, влажность, ощущаемая температура)
-- 💧 Расчет точки росы (Dew Point)
-- 🌡️ Расчет теплового индекса (Heat Index)
-- 📈 История данных (3 минуты на экране, 1 час для средних)
-- 🔄 Автоматическое обновление данных каждые 3 секунды
-- 📱 Адаптивный веб-интерфейс для всех устройств
-- 🌐 WiFi с автоматическим переподключением
-- 💾 Экспорт данных в CSV и JSON
-
-### 🎨 Веб-интерфейс
-- Современный градиентный дизайн
-- Индикаторы комфорта для температуры и влажности
-- Отображение min/max/avg значений
-- Системная информация (uptime, RAM, CPU, WiFi)
-- Управление устройством (сброс, перезагрузка)
-- Переключение °C / °F
+- 📊 Four interactive graphs (temperature, humidity, perceived temperature, and felt temperature)
+- 💧 Dew Point
+- 🌡️ Heat Index
+- 📈 History data
+- 🔄 Auto update
+- 📱 Adaptive web UI for all devices
+- 🌐 WiFi with automatic reconnection
+- 💾 Exporting data to CSV and JSON
+  
+### 🎨 Web UI
+- Modern gradient design
+- Comfort indicators for temperature and humidity
+- Displaying min/max/avg temperature and humidity values
+- System info (uptime, RAM, CPU, WiFi)
+- Device management (reset, reboot)
+- Switch °C / °F
 
 ## 🔧 Компоненты
 
 ### Оборудование
 - **ESP32 Super Mini** - микроконтроллер
 - **AHT10** - датчик температуры и влажности (I2C)
-- Проводники для подключения
-
+- Wires, a soldering iron, solder, rosin, and other components for assembly
+  
 ### Программное обеспечение
-- **PlatformIO** или **Arduino IDE**
-- **Библиотеки:**
+- **PlatformIO** or **Arduino IDE**
+- **Libraries:**
   - Adafruit_AHTX0
   - WebServer (встроена в ESP32)
   - WiFi (встроена в ESP32)
@@ -52,15 +52,15 @@ GPIO 8            → SDA
 GPIO 9            → SCL
 ```
 
-⚠️ **Важно:** ESP32 Super Mini работает на 3.3V! Не подключайте 5V к датчику!
+⚠️ **Important:** ESP32 Super Mini works on 3.3V! Do not connect 5V to the sensor!
 
-## 🚀 Установка и настройка
+## 🚀 Installation and configuration
 
-### 1. Установка PlatformIO
+### 1. Installing PlatformIO
 
 ```bash
-# Установите Visual Studio Code
-# Установите расширение PlatformIO IDE
+# Install Visual Studio Code
+# Install the PlatformIO IDE extension
 ```
 
 ### 2. Клонирование проекта
