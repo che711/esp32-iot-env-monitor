@@ -67,33 +67,33 @@ GPIO 9            → SCL
 
 ```bash
 git clone <repository-url>
-cd esp32-weather-station
+cd esp32-iot-env-monitor
 ```
 
 ### 3. Настройка WiFi
 
-Отредактируйте файл `src/config.h`:
+Edit the file `src/config.h`:
 
 ```cpp
-inline const char* WIFI_SSID = "YOUR_WIFI_SSID";     // Ваш WiFi SSID
-inline const char* WIFI_PASSWORD = "YOUR_PASSWORD";   // Ваш WiFi пароль
+inline const char* WIFI_SSID = "YOUR_WIFI_SSID";     // your WiFi SSID
+inline const char* WIFI_PASSWORD = "YOUR_PASSWORD";   // your WiFi пароль
 ```
 
-### 4. Загрузка прошивки
+### 4. Downloading the firmware
 
 ```bash
 # В PlatformIO
 pio run --target upload
 
-# Или используйте кнопку "Upload" в VSCode
+# Use the button "Upload" in VSCode
 ```
 
-### 5. Просмотр Serial Monitor
+### 5. Check Serial Monitor
 
 ```bash
 pio device monitor --baud 115200
 
-# Или используйте встроенный Serial Monitor в VSCode
+# Or use the built-in Serial Monitor in VSCode
 ```
 
 ## 📊 Структура проекта
