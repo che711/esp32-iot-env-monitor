@@ -1,15 +1,15 @@
 # 🌡️ ESP32 Super Mini Weather Station
 
-Современная метеостанция на базе **ESP32 Super Mini** с датчиком **AHT10** для мониторинга температуры и влажности в реальном времени.
+A modern weather station based on the **ESP32 Super Mini** with the **AHT10** sensor for real-time temperature and humidity monitoring.
 
 ![Version](https://img.shields.io/badge/version-3.0-blue)
 ![Platform](https://img.shields.io/badge/platform-ESP32-green)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 
-## 📋 Возможности
+## 📋 Scope
 
-### 🎯 Основные функции
-- ✅ Мониторинг температуры и влажности в режиме реального времени
+### 🎯 Functions
+- ✅ Real-time temperature and humidity monitoring
 - 📊 Три интерактивных графика (температура, влажность, ощущаемая температура)
 - 💧 Расчет точки росы (Dew Point)
 - 🌡️ Расчет теплового индекса (Heat Index)
