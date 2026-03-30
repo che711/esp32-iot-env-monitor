@@ -2,6 +2,9 @@
 
 A modern weather station based on the **ESP32 Super Mini** with the **AHT10** sensor for real-time temperature and humidity monitoring.
 
+TBD
+# TODO: combine QUICK_START.md and README.md
+
 ![Version](https://img.shields.io/badge/version-3.0-blue)
 ![Platform](https://img.shields.io/badge/platform-ESP32-green)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
@@ -63,14 +66,14 @@ GPIO 9            → SCL
 # Install the PlatformIO IDE extension
 ```
 
-### 2. Клонирование проекта
+### 2. Clone the project
 
 ```bash
-git clone <repository-url>
+git clone git@github.com:che711/esp32-iot-env-monitor.git
 cd esp32-iot-env-monitor
 ```
 
-### 3. Настройка WiFi
+### 3. Setting WI-FI up
 
 Edit the file `src/config.h`:
 
@@ -82,7 +85,7 @@ inline const char* WIFI_PASSWORD = "YOUR_PASSWORD";   // your WiFi пароль
 ### 4. Downloading the firmware
 
 ```bash
-# В PlatformIO
+# In PlatformIO
 pio run --target upload
 
 # Use the button "Upload" in VSCode
@@ -96,21 +99,32 @@ pio device monitor --baud 115200
 # Or use the built-in Serial Monitor in VSCode
 ```
 
-## 📊 Структура проекта
+## 📊 Structure of the project
 
 ```
 esp32-weather-station/
 ├── src/
-│   ├── main.cpp              # Основной файл программы
-│   ├── config.h              # Конфигурация (WiFi, пины, настройки)
-│   ├── sensor_manager.h/cpp  # Управление датчиком AHT10
-│   ├── wifi_manager.h/cpp    # Управление WiFi подключением
-│   ├── web_server.h/cpp      # Веб-сервер и API
-│   ├── calculations.h/cpp    # Расчеты (точка росы, тепловой индекс)
-│   └── html_pages.h          # HTML интерфейс
-├── platformio.ini            # Конфигурация PlatformIO
-└── README.md                 # Эта документация
+│   ├── battery_manager.h/cpp     # Battery configuration files
+│   ├── main.cpp                  # Main program file
+│   ├── config.h                  # Configuration (WiFi, pins, settings)
+│   ├── sensor_manager.h/cpp      # AHT10 sensor management
+│   ├── wifi_manager.h/cpp        # WiFi connection management
+│   ├── web_server.h/cpp          # Web server and API
+│   ├── calculations.h/cpp        # Calculations (dew point, thermal index)
+│   └── html_pages.h              # HTML interface
+├── tests/
+│   └── api
+│     └── test_api.py             # in progress 
+│     └── test_api.sh             # in progress 
+│   └── web
+│     └── test_web_ui.py          # in progress 
+├── .gitignore                    # data for .gitignore
+├── API_EXAMPLES.md               
+├── LICENSE                       
+├── platformio.ini                # PlatformIO configuration
+└── README.md                     # This documentation
 ```
+
 
 ## 🌐 API Endpoints
 
