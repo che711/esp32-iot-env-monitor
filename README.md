@@ -32,19 +32,19 @@ TBD
 
 ## 🔧 Компоненты
 
-### Оборудование
-- **ESP32 Super Mini** - микроконтроллер
-- **AHT10** - датчик температуры и влажности (I2C)
+### Equipment
+- **ESP32 Super Mini** - Microcontroller
+- **AHT10** - temperature and humidity sensor (I2C)
 - Wires, a soldering iron, solder, rosin, and other components for assembly
   
-### Программное обеспечение
+### Software
 - **PlatformIO** or **Arduino IDE**
 - **Libraries:**
   - Adafruit_AHTX0
-  - WebServer (встроена в ESP32)
-  - WiFi (встроена в ESP32)
+  - WebServer (built into ESP32)
+  - WiFi (built into ESP32)
 
-## 📐 Схема подключения
+## 📐 Connection diagram
 
 ```
 ESP32 Super Mini → AHT10
@@ -129,7 +129,7 @@ esp32-weather-station/
 ## 🌐 API Endpoints
 
 ### GET /
-Главная страница веб-интерфейса
+The main page of the web interface
 
 ### GET /data
 ```json
