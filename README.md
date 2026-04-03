@@ -2,25 +2,25 @@
 
 A modern weather station based on the **ESP32 Super Mini** with the **AHT10** sensor for real-time temperature and humidity monitoring.
 
-TBD
 # TODO: combine QUICK_START.md and README.md
 
 ![Version](https://img.shields.io/badge/version-3.0-blue)
 ![Platform](https://img.shields.io/badge/platform-ESP32-green)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 
-## 📋 Scope
 
-### 🎯 Functions
-- ✅ Real-time temperature and humidity monitoring
-- 📊 Four interactive graphs (temperature, humidity, perceived temperature, and felt temperature)
-- 💧 Dew Point
-- 🌡️ Heat Index
-- 📈 History data
-- 🔄 Auto update
-- 📱 Adaptive web UI for all devices
-- 🌐 WiFi with automatic reconnection
-- 💾 Exporting data to CSV and JSON
+##  Scope
+
+###  Functions
+-  Real-time temperature and humidity monitoring
+-  Four interactive graphs (temperature, humidity, perceived temperature, and felt temperature)
+-  Dew Point
+-  Heat Index
+-  History data
+-  Auto update
+-  Adaptive web UI for all devices
+-  WiFi with automatic reconnection
+-  Exporting data to CSV and JSON
   
 ### 🎨 Web UI
 - Modern gradient design
@@ -29,6 +29,7 @@ TBD
 - System info (uptime, RAM, CPU, WiFi)
 - Device management (reset, reboot)
 - Switch °C / °F
+
 
 ## 🔧 Компоненты
 
@@ -44,7 +45,8 @@ TBD
   - WebServer (built into ESP32)
   - WiFi (built into ESP32)
 
-## 📐 Connection diagram
+
+##  Connection diagram
 
 ```
 ESP32 Super Mini → AHT10
@@ -55,9 +57,11 @@ GPIO 8            → SDA
 GPIO 9            → SCL
 ```
 
-⚠️ **Important:** ESP32 Super Mini works on 3.3V! Do not connect 5V to the sensor!
+**Important:** ESP32 Super Mini works on 3.3V! Do not connect 5V to the sensor!
 
-## 🚀 Installation and configuration
+
+
+##  Installation and configuration
 
 ### 1. Installing PlatformIO
 
@@ -99,7 +103,8 @@ pio device monitor --baud 115200
 # Or use the built-in Serial Monitor in VSCode
 ```
 
-## 📊 Structure of the project
+
+##  Structure of the project
 
 ```
 esp32-weather-station/
@@ -126,7 +131,8 @@ esp32-weather-station/
 ```
 
 
-## 🌐 API Endpoints
+
+##  API Endpoints
 
 ### GET /
 The main page of the web interface
@@ -163,115 +169,116 @@ The main page of the web interface
 }
 ```
 
+
 ### GET /history
-Возвращает массивы данных для графиков (60 точек)
+Returns arrays of data for graphs (60 points)
 
 ### GET /reset
-Сброс min/max значений
+Reset min/max values
 
 ### GET /reboot
-Перезагрузка устройства
+Device reboot
 
-## ⚙️ Настройки в config.h
+##  Settings in config.h
 
-### I2C пины
+### I2C pins
 ```cpp
-inline constexpr int I2C_SDA = 8;  // GPIO для SDA
-inline constexpr int I2C_SCL = 9;  // GPIO для SCL
+inline constexpr int I2C_SDA = 8;  // GPIO for SDA
+inline constexpr int I2C_SCL = 9;  // GPIO for SCL
 ```
 
-### Интервалы обновления
+### Update intervals
 ```cpp
-inline constexpr unsigned long SENSOR_INTERVAL = 3000;       // 3 сек
-inline constexpr unsigned long WIFI_CHECK_INTERVAL = 30000;  // 30 сек
+inline constexpr unsigned long SENSOR_INTERVAL = 3000;       // 3 sec
+inline constexpr unsigned long WIFI_CHECK_INTERVAL = 30000;  // 30 sec
 ```
 
-### История
+### history
 ```cpp
-inline constexpr int HISTORY_SIZE = 60;              // 3 минуты
-inline constexpr int HOURLY_HISTORY_SIZE = 1200;     // 1 час
+inline constexpr int HISTORY_SIZE = 60;              // 3 mins
+inline constexpr int HOURLY_HISTORY_SIZE = 1200;     // 1 hour
 ```
 
-## 🐛 Решение проблем
 
-### Датчик не обнаружен
-1. Проверьте подключение проводов
-2. Убедитесь, что используются правильные GPIO пины
-3. Проверьте питание датчика (должно быть 3.3V)
-4. Попробуйте другой датчик AHT10
+##  Resolve issues
 
-### Не подключается к WiFi
-1. Проверьте правильность SSID и пароля
-2. Убедитесь, что WiFi сеть работает на 2.4 GHz
-3. Проверьте расстояние до роутера
-4. Посмотрите логи в Serial Monitor
+### The sensor is not detected
+1. Check the wiring connection
+2. Make sure that the correct GPIO pins are used.
+3. Check the sensor's power supply (it should be 3.3V)
+4. Try another AHT10 sensor
 
-### Веб-интерфейс не открывается
-1. Проверьте, что ESP32 подключен к WiFi
-2. Найдите IP адрес в Serial Monitor
-3. Убедитесь, что вы в той же сети
-4. Попробуйте перезагрузить устройство
+### Does not connect to WiFi
+1. Verify that the SSID and password are correct
+2. Make sure that the WiFi network is running on 2.4 GHz
+3. Check the distance to the router
+4. Look at the logs in Serial Monitor
 
-### Высокое использование CPU
-1. Увеличьте `SENSOR_INTERVAL` в config.h
-2. Уменьшите размер истории
-3. Отключите ненужные функции
+### The web interface does not open
+1. Check that the ESP32 is connected to WiFi
+2. Find the IP address in the Serial Monitor
+3. Make sure you are on the same network.
+4. Try restarting your device
 
-## 📈 Производительность
+### High CPU usage
+1. Increase the `SENSOR_INTERVAL` in config.h
+2. Reduce the size of the history
+3. Disable unnecessary functions
 
-- **Использование RAM:** ~200 KB
-- **Использование CPU:** 10-15%
-- **Потребление энергии:** ~80 mA (WiFi активен)
-- **Время отклика API:** <100ms
-- **Частота обновления:** 3 секунды
 
-## 🔮 Планы развития
+##  Efficiency
 
-- [ ] MQTT поддержка
-- [ ] Интеграция с Home Assistant
-- [ ] Поддержка нескольких датчиков
-- [ ] OTA обновления
-- [ ] Сохранение данных в SPIFFS
-- [ ] Telegram бот для уведомлений
-- [ ] Графики на больший период времени
+- **RAM Usage:** ~200 KB
+- **CPU Usage:** 10-15%
+- **Energy consumption:** ~80 mA (WiFi is active)
+- **API response time:** <100ms
+- **Refresh rate:** 3 seconds
 
-## 📝 Changelog
+##  Development plans
+
+- [ ] MQTT support
+- [ ] Integration with the Home Assistant
+- [ ] Support for multiple sensors
+- [ ] OTA updates
+- [ ] Saving data to SPIFFS
+- [ ] Telegram bot for notifications
+- [ ] Charts for a longer period of time
+
+
+##  Changelog
 
 ### v3.0 (2025-02-01)
-- ✨ Полная переработка проекта
-- 📊 Три отдельных графика
-- 🎨 Новый современный UI
-- 🔧 Улучшенная обработка ошибок
-- 📱 Лучшая адаптивность
-- ⚡ Оптимизация производительности
-- 📖 Расширенная документация
+-  Reworking the project
+-  Three separate charts
+-  New modern UI
+-  Improved error handling
+-  Better adaptability
+-  Performance optimization
+-  Extended documentation
 
 ### v2.0
-- Базовая функциональность
-- Один комбинированный график
-- Простой веб-интерфейс
+- Basic functionality
+- One combined schedule
+- Simple web interface
 
-## 📄 Лицензия
 
-MIT License - свободно используйте в своих проектах!
+##  License
 
-## 🤝 Вклад в проект
+MIT License - use it freely in your projects!
 
-Буду рад pull requests! Для крупных изменений сначала откройте issue.
 
-## 💬 Поддержка
+##  Support
 
-Если у вас возникли вопросы или проблемы:
-1. Проверьте раздел "Решение проблем"
-2. Посмотрите существующие issues
-3. Создайте новый issue с подробным описанием
+If you have any questions or concerns:
+1. Check the "Problem Solving" section
+2. Look at existing issues
+3. Create a new issue with a detailed description
 
-## 🙏 Благодарности
+##  Thanks
 
-- Adafruit за отличные библиотеки
-- Espressif за ESP32
-- Сообществу PlatformIO
-
+- Adafruit for excellent libraries
+- Espressif for ESP32
+- To the PlatformIO Community
 ---
 
-**Сделано с ❤️ для DIY энтузиастов**
+**Made with ❤️ for DIY enthusiasts**
