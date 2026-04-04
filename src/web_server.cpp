@@ -148,11 +148,24 @@ void WeatherWebServer::handleStats() {
     String json;
     json.reserve(768);  // Увеличено для данных батареи
     
+    // Chip temperature (ESP32-C3 supports internal sensor)
+    #ifdef SOC_TEMP_SENSOR_SUPPORTED
+    float chipTemp = temperatureRead();
+    #else
+    float chipTemp = -1;
+    #endif
+
     json = "{";
     json += "\"uptime\":\"" + getUptimeString() + "\"";
     json += ",\"freeHeap\":\"" + formatBytes(freeHeap) + "\"";
+    json += ",\"freeHeapRaw\":" + String(freeHeap);
+    json += ",\"totalHeapRaw\":" + String(totalHeap);
+    json += ",\"heapUsagePct\":" + String(heapUsagePercent, 1);
     json += ",\"heapUsage\":\"" + String(heapUsagePercent, 1) + "%\"";
     json += ",\"cpuUsage\":\"" + String(getCPUUsage(), 1) + "\"";
+    if (chipTemp > 0) {
+        json += ",\"chipTemp\":" + String(chipTemp, 1);
+    }
     json += ",\"ssid\":\"" + _wifi->getSSID() + "\"";
     json += ",\"rssi\":\"" + String(_wifi->getRSSI()) + "\"";
     json += ",\"ip\":\"" + _wifi->getIP() + "\"";

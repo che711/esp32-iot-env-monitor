@@ -1,47 +1,52 @@
 # 🌡️ ESP32 Super Mini Weather Station
 
-Современная метеостанция на базе **ESP32 Super Mini** с датчиком **AHT10** для мониторинга температуры и влажности в реальном времени.
+A modern weather station based on the **ESP32 Super Mini** with the **AHT10** sensor for real-time temperature and humidity monitoring.
+
+# TODO: combine QUICK_START.md and README.md
 
 ![Version](https://img.shields.io/badge/version-3.0-blue)
 ![Platform](https://img.shields.io/badge/platform-ESP32-green)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 
-## 📋 Возможности
 
-### 🎯 Основные функции
-- ✅ Мониторинг температуры и влажности в режиме реального времени
-- 📊 Три интерактивных графика (температура, влажность, ощущаемая температура)
-- 💧 Расчет точки росы (Dew Point)
-- 🌡️ Расчет теплового индекса (Heat Index)
-- 📈 История данных (3 минуты на экране, 1 час для средних)
-- 🔄 Автоматическое обновление данных каждые 3 секунды
-- 📱 Адаптивный веб-интерфейс для всех устройств
-- 🌐 WiFi с автоматическим переподключением
-- 💾 Экспорт данных в CSV и JSON
+##  Scope
 
-### 🎨 Веб-интерфейс
-- Современный градиентный дизайн
-- Индикаторы комфорта для температуры и влажности
-- Отображение min/max/avg значений
-- Системная информация (uptime, RAM, CPU, WiFi)
-- Управление устройством (сброс, перезагрузка)
-- Переключение °C / °F
+###  Functions
+-  Real-time temperature and humidity monitoring
+-  Four interactive graphs (temperature, humidity, perceived temperature, and felt temperature)
+-  Dew Point
+-  Heat Index
+-  History data
+-  Auto update
+-  Adaptive web UI for all devices
+-  WiFi with automatic reconnection
+-  Exporting data to CSV and JSON
+  
+### 🎨 Web UI
+- Modern gradient design
+- Comfort indicators for temperature and humidity
+- Displaying min/max/avg temperature and humidity values
+- System info (uptime, RAM, CPU, WiFi)
+- Device management (reset, reboot)
+- Switch °C / °F
+
 
 ## 🔧 Компоненты
 
-### Оборудование
-- **ESP32 Super Mini** - микроконтроллер
-- **AHT10** - датчик температуры и влажности (I2C)
-- Проводники для подключения
-
-### Программное обеспечение
-- **PlatformIO** или **Arduino IDE**
-- **Библиотеки:**
+### Equipment
+- **ESP32 Super Mini** - Microcontroller
+- **AHT10** - temperature and humidity sensor (I2C)
+- Wires, a soldering iron, solder, rosin, and other components for assembly
+  
+### Software
+- **PlatformIO** or **Arduino IDE**
+- **Libraries:**
   - Adafruit_AHTX0
-  - WebServer (встроена в ESP32)
-  - WiFi (встроена в ESP32)
+  - WebServer (built into ESP32)
+  - WiFi (built into ESP32)
 
-## 📐 Схема подключения
+
+##  Connection diagram
 
 ```
 ESP32 Super Mini → AHT10
@@ -52,70 +57,85 @@ GPIO 8            → SDA
 GPIO 9            → SCL
 ```
 
-⚠️ **Важно:** ESP32 Super Mini работает на 3.3V! Не подключайте 5V к датчику!
+**Important:** ESP32 Super Mini works on 3.3V! Do not connect 5V to the sensor!
 
-## 🚀 Установка и настройка
 
-### 1. Установка PlatformIO
 
-```bash
-# Установите Visual Studio Code
-# Установите расширение PlatformIO IDE
-```
+##  Installation and configuration
 
-### 2. Клонирование проекта
+### 1. Installing PlatformIO
 
 ```bash
-git clone <repository-url>
-cd esp32-weather-station
+# Install Visual Studio Code
+# Install the PlatformIO IDE extension
 ```
 
-### 3. Настройка WiFi
+### 2. Clone the project
 
-Отредактируйте файл `src/config.h`:
+```bash
+git clone git@github.com:che711/esp32-iot-env-monitor.git
+cd esp32-iot-env-monitor
+```
+
+### 3. Setting WI-FI up
+
+Edit the file `src/config.h`:
 
 ```cpp
-inline const char* WIFI_SSID = "YOUR_WIFI_SSID";     // Ваш WiFi SSID
-inline const char* WIFI_PASSWORD = "YOUR_PASSWORD";   // Ваш WiFi пароль
+inline const char* WIFI_SSID = "YOUR_WIFI_SSID";     // your WiFi SSID
+inline const char* WIFI_PASSWORD = "YOUR_PASSWORD";   // your WiFi пароль
 ```
 
-### 4. Загрузка прошивки
+### 4. Downloading the firmware
 
 ```bash
-# В PlatformIO
+# In PlatformIO
 pio run --target upload
 
-# Или используйте кнопку "Upload" в VSCode
+# Use the button "Upload" in VSCode
 ```
 
-### 5. Просмотр Serial Monitor
+### 5. Check Serial Monitor
 
 ```bash
 pio device monitor --baud 115200
 
-# Или используйте встроенный Serial Monitor в VSCode
+# Or use the built-in Serial Monitor in VSCode
 ```
 
-## 📊 Структура проекта
+
+##  Structure of the project
 
 ```
 esp32-weather-station/
 ├── src/
-│   ├── main.cpp              # Основной файл программы
-│   ├── config.h              # Конфигурация (WiFi, пины, настройки)
-│   ├── sensor_manager.h/cpp  # Управление датчиком AHT10
-│   ├── wifi_manager.h/cpp    # Управление WiFi подключением
-│   ├── web_server.h/cpp      # Веб-сервер и API
-│   ├── calculations.h/cpp    # Расчеты (точка росы, тепловой индекс)
-│   └── html_pages.h          # HTML интерфейс
-├── platformio.ini            # Конфигурация PlatformIO
-└── README.md                 # Эта документация
+│   ├── battery_manager.h/cpp     # Battery configuration files
+│   ├── main.cpp                  # Main program file
+│   ├── config.h                  # Configuration (WiFi, pins, settings)
+│   ├── sensor_manager.h/cpp      # AHT10 sensor management
+│   ├── wifi_manager.h/cpp        # WiFi connection management
+│   ├── web_server.h/cpp          # Web server and API
+│   ├── calculations.h/cpp        # Calculations (dew point, thermal index)
+│   └── html_pages.h              # HTML interface
+├── tests/
+│   └── api
+│     └── test_api.py             # in progress 
+│     └── test_api.sh             # in progress 
+│   └── web
+│     └── test_web_ui.py          # in progress 
+├── .gitignore                    # data for .gitignore
+├── API_EXAMPLES.md               
+├── LICENSE                       
+├── platformio.ini                # PlatformIO configuration
+└── README.md                     # This documentation
 ```
 
-## 🌐 API Endpoints
+
+
+##  API Endpoints
 
 ### GET /
-Главная страница веб-интерфейса
+The main page of the web interface
 
 ### GET /data
 ```json
@@ -149,115 +169,116 @@ esp32-weather-station/
 }
 ```
 
+
 ### GET /history
-Возвращает массивы данных для графиков (60 точек)
+Returns arrays of data for graphs (60 points)
 
 ### GET /reset
-Сброс min/max значений
+Reset min/max values
 
 ### GET /reboot
-Перезагрузка устройства
+Device reboot
 
-## ⚙️ Настройки в config.h
+##  Settings in config.h
 
-### I2C пины
+### I2C pins
 ```cpp
-inline constexpr int I2C_SDA = 8;  // GPIO для SDA
-inline constexpr int I2C_SCL = 9;  // GPIO для SCL
+inline constexpr int I2C_SDA = 8;  // GPIO for SDA
+inline constexpr int I2C_SCL = 9;  // GPIO for SCL
 ```
 
-### Интервалы обновления
+### Update intervals
 ```cpp
-inline constexpr unsigned long SENSOR_INTERVAL = 3000;       // 3 сек
-inline constexpr unsigned long WIFI_CHECK_INTERVAL = 30000;  // 30 сек
+inline constexpr unsigned long SENSOR_INTERVAL = 3000;       // 3 sec
+inline constexpr unsigned long WIFI_CHECK_INTERVAL = 30000;  // 30 sec
 ```
 
-### История
+### history
 ```cpp
-inline constexpr int HISTORY_SIZE = 60;              // 3 минуты
-inline constexpr int HOURLY_HISTORY_SIZE = 1200;     // 1 час
+inline constexpr int HISTORY_SIZE = 60;              // 3 mins
+inline constexpr int HOURLY_HISTORY_SIZE = 1200;     // 1 hour
 ```
 
-## 🐛 Решение проблем
 
-### Датчик не обнаружен
-1. Проверьте подключение проводов
-2. Убедитесь, что используются правильные GPIO пины
-3. Проверьте питание датчика (должно быть 3.3V)
-4. Попробуйте другой датчик AHT10
+##  Resolve issues
 
-### Не подключается к WiFi
-1. Проверьте правильность SSID и пароля
-2. Убедитесь, что WiFi сеть работает на 2.4 GHz
-3. Проверьте расстояние до роутера
-4. Посмотрите логи в Serial Monitor
+### The sensor is not detected
+1. Check the wiring connection
+2. Make sure that the correct GPIO pins are used.
+3. Check the sensor's power supply (it should be 3.3V)
+4. Try another AHT10 sensor
 
-### Веб-интерфейс не открывается
-1. Проверьте, что ESP32 подключен к WiFi
-2. Найдите IP адрес в Serial Monitor
-3. Убедитесь, что вы в той же сети
-4. Попробуйте перезагрузить устройство
+### Does not connect to WiFi
+1. Verify that the SSID and password are correct
+2. Make sure that the WiFi network is running on 2.4 GHz
+3. Check the distance to the router
+4. Look at the logs in Serial Monitor
 
-### Высокое использование CPU
-1. Увеличьте `SENSOR_INTERVAL` в config.h
-2. Уменьшите размер истории
-3. Отключите ненужные функции
+### The web interface does not open
+1. Check that the ESP32 is connected to WiFi
+2. Find the IP address in the Serial Monitor
+3. Make sure you are on the same network.
+4. Try restarting your device
 
-## 📈 Производительность
+### High CPU usage
+1. Increase the `SENSOR_INTERVAL` in config.h
+2. Reduce the size of the history
+3. Disable unnecessary functions
 
-- **Использование RAM:** ~200 KB
-- **Использование CPU:** 10-15%
-- **Потребление энергии:** ~80 mA (WiFi активен)
-- **Время отклика API:** <100ms
-- **Частота обновления:** 3 секунды
 
-## 🔮 Планы развития
+##  Efficiency
 
-- [ ] MQTT поддержка
-- [ ] Интеграция с Home Assistant
-- [ ] Поддержка нескольких датчиков
-- [ ] OTA обновления
-- [ ] Сохранение данных в SPIFFS
-- [ ] Telegram бот для уведомлений
-- [ ] Графики на больший период времени
+- **RAM Usage:** ~200 KB
+- **CPU Usage:** 10-15%
+- **Energy consumption:** ~80 mA (WiFi is active)
+- **API response time:** <100ms
+- **Refresh rate:** 3 seconds
 
-## 📝 Changelog
+##  Development plans
+
+- [ ] MQTT support
+- [ ] Integration with the Home Assistant
+- [ ] Support for multiple sensors
+- [ ] OTA updates
+- [ ] Saving data to SPIFFS
+- [ ] Telegram bot for notifications
+- [ ] Charts for a longer period of time
+
+
+##  Changelog
 
 ### v3.0 (2025-02-01)
-- ✨ Полная переработка проекта
-- 📊 Три отдельных графика
-- 🎨 Новый современный UI
-- 🔧 Улучшенная обработка ошибок
-- 📱 Лучшая адаптивность
-- ⚡ Оптимизация производительности
-- 📖 Расширенная документация
+-  Reworking the project
+-  Three separate charts
+-  New modern UI
+-  Improved error handling
+-  Better adaptability
+-  Performance optimization
+-  Extended documentation
 
 ### v2.0
-- Базовая функциональность
-- Один комбинированный график
-- Простой веб-интерфейс
+- Basic functionality
+- One combined schedule
+- Simple web interface
 
-## 📄 Лицензия
 
-MIT License - свободно используйте в своих проектах!
+##  License
 
-## 🤝 Вклад в проект
+MIT License - use it freely in your projects!
 
-Буду рад pull requests! Для крупных изменений сначала откройте issue.
 
-## 💬 Поддержка
+##  Support
 
-Если у вас возникли вопросы или проблемы:
-1. Проверьте раздел "Решение проблем"
-2. Посмотрите существующие issues
-3. Создайте новый issue с подробным описанием
+If you have any questions or concerns:
+1. Check the "Problem Solving" section
+2. Look at existing issues
+3. Create a new issue with a detailed description
 
-## 🙏 Благодарности
+##  Thanks
 
-- Adafruit за отличные библиотеки
-- Espressif за ESP32
-- Сообществу PlatformIO
-
+- Adafruit for excellent libraries
+- Espressif for ESP32
+- To the PlatformIO Community
 ---
 
-**Сделано с ❤️ для DIY энтузиастов**
+**Made with ❤️ for DIY enthusiasts**
