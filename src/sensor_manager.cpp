@@ -210,8 +210,8 @@ int SensorManager::getHistoryCount() const {
 bool SensorManager::isValid() const {
     // Never read yet → not valid
     if (!_hadFirstRead) return false;
-    // Valid if last successful read was within the last minute
-    return (millis() - _lastSuccessfulRead) < 60000;
+    // Valid if last successful read was within 2 sensor intervals (tolerates one missed read)
+    return (millis() - _lastSuccessfulRead) < (SENSOR_INTERVAL * 2);
 }
 
 int SensorManager::getReadErrorCount() const {

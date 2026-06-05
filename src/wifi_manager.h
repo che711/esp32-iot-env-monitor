@@ -27,7 +27,6 @@ private:
     const char* _ssid;
     const char* _password;
     int _reconnectCount;
-    unsigned long _lastCheck;
     unsigned long _connectTime;
 
     // Состояние неблокирующего реконнекта

@@ -4,7 +4,6 @@ WiFiManager::WiFiManager(const char* ssid, const char* password)
     : _ssid(ssid),
       _password(password),
       _reconnectCount(0),
-      _lastCheck(0),
       _connectTime(0),
       _reconnecting(false),
       _reconnectStarted(0) {}
@@ -83,10 +82,9 @@ bool WiFiManager::connectBlocking() {
 void WiFiManager::checkConnection() {
     unsigned long now = millis();
 
-    // Уже подключены и не в процессе реконнекта — просто раз в 5 с проверяем
+    // Уже подключены и не в процессе реконнекта — выходим сразу
     if (!_reconnecting) {
         if (WiFi.status() == WL_CONNECTED) {
-            _lastCheck = now;
             return;
         }
 

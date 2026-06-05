@@ -229,8 +229,12 @@ void setup() {
     
     // Check battery before starting everything else
     if (batteryManager.isCriticalBattery() && !batteryManager.isUsbConnected()) {
-        Serial.println("⚠️ WARNING: Critical battery level detected!");
-        Serial.println("Device will enter deep sleep after minimal initialization.");
+        Serial.println("⚠️ CRITICAL: Battery too low to start. Entering deep sleep immediately.");
+        if (DEEP_SLEEP_ENABLED) {
+            enterDeepSleep(DEEP_SLEEP_CRITICAL_DURATION, "Critical battery on boot");
+        }
+        // DEEP_SLEEP_ENABLED=false: print warning and continue (developer/debug mode)
+        Serial.println("⚠️ DEEP_SLEEP_ENABLED=false — continuing despite critical battery.");
     }
 
     // Initialize sensor
@@ -389,6 +393,9 @@ void loop() {
 
     unsigned long loopEnd = micros();
     busyTime += (loopEnd - loopStart);
+    // idleTime фиксированно = 10мс на итерацию (время delay в конце loop).
+    // g_cpuUsage = busyTime / (busyTime + idleTime) — относительная нагрузка loop
+    // на фоне intentional delay, а не реальный % времени CPU.
     delay(10);
     idleTime += 10000;
 }
