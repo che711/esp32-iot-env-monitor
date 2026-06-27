@@ -83,8 +83,9 @@ void WeatherWebServer::webSocketEvent(uint8_t num, WStype_t type, uint8_t* paylo
 
 void WeatherWebServer::broadcastLog(const String& message) {
     // Отправка логов всем подключенным WebSocket клиентам
-    String msg = message;  // Создаём копию для передачи по ссылке
-    _wsServer.broadcastTXT(msg);
+    // WebSockets 2.x: broadcastTXT принимает String& (не const) — копия обязательна
+    String payload = message;
+    _wsServer.broadcastTXT(payload);
 }
 
 void WeatherWebServer::setCORSHeaders() {
@@ -200,24 +201,23 @@ void WeatherWebServer::handleHistory() {
     
     _sensor->getHistory(tempHist, humidHist, HISTORY_SIZE);
     int count = _sensor->getHistoryCount();
-    
-    unsigned long nowSec = millis() / 1000;
-    
+
     String json;
     json.reserve(HISTORY_BUFFER_SIZE);
     
+    // Метки времени — время относительно текущего момента (uptime-based, т.к. RTC нет)
+    // Формат: "-59m", "-58m" ... "now"
     json = "{\"labels\":[";
     for (int i = 0; i < count; i++) {
         if (i > 0) json += ",";
-        unsigned long pointSec = nowSec - (unsigned long)(count - 1 - i) * (SENSOR_INTERVAL / 1000);
-        int h = (pointSec / 3600) % 24;
-        int m = (pointSec % 3600) / 60;
-        int s = pointSec % 60;
-        char buf[12];
-        sprintf(buf, "%02d:%02d:%02d", h, m, s);
-        json += "\"";
-        json += buf;
-        json += "\"";
+        int minutesAgo = (count - 1 - i) * (int)(SENSOR_INTERVAL / 60000);
+        if (minutesAgo == 0) {
+            json += "\"now\"";
+        } else {
+            json += "\"-";
+            json += String(minutesAgo);
+            json += "m\"";
+        }
     }
     
     json += "],\"temp\":[";

@@ -2,6 +2,9 @@
 #include <math.h>
 
 float WeatherCalculations::calculateDewPoint(float temp, float humid) {
+    // Guard: log(0) is undefined — clamp humidity to a safe minimum
+    if (humid <= 0.0f) humid = 0.01f;
+    if (humid > 100.0f) humid = 100.0f;
     float a = 17.27;
     float b = 237.7;
     float alpha = ((a * temp) / (b + temp)) + log(humid / 100.0);
