@@ -29,44 +29,19 @@ static const float DISCHARGE_CURVE[][2] = {
 static const int CURVE_POINTS =
     sizeof(DISCHARGE_CURVE) / sizeof(DISCHARGE_CURVE[0]);
 
-static const float ADC_MAX_VALUE = 4095.0f;  // 12-bit
-
-// ============================================
-// Таблица компенсации нелинейности ADC ESP32
-// (vAdc_raw → коэффициент коррекции)
-//
-// ADC ESP32-C3 при 11dB аттенюации нелинеен
-// в верхней части диапазона. Эта таблица
-// компенсирует систематическую ошибку
-// без замены оборудования.
-//
-// Калибровка: измерьте мультиметром реальное
-// напряжение на ADC-пине и сравните с vAdc.
-// Если vAdc стабильно ниже — увеличьте
-// коэффициент для этого диапазона.
-// ============================================
-static const float ADC_NONLIN_TABLE[][2] = {
-    // { vAdc_raw,  correction_factor }
-    {0.00f, 1.000f},
-    {0.50f, 1.000f},
-    {1.00f, 1.005f},
-    {1.50f, 1.012f},
-    {1.80f, 1.020f},  // ~3.6V bat — начало нелинейности
-    {2.00f, 1.030f},  // ~4.0V bat — основная погрешность
-    {2.10f, 1.040f},  // ~4.2V bat — максимальная погрешность
-    {2.50f, 1.050f},
-};
-static const int NONLIN_POINTS =
-    sizeof(ADC_NONLIN_TABLE) / sizeof(ADC_NONLIN_TABLE[0]);
-
 // Коэффициент EMA-фильтра (0..1)
-// 0.25 = плавное сглаживание ~4 замера для выхода на 63%
-// При BATTERY_CHECK_INTERVAL=30с и изменении батареи ~0.001V/мин — этого достаточно
+// 0.25 ≈ выход на 63% нового значения за ~4 замера.
+// При BATTERY_CHECK_INTERVAL=10с и скорости разряда ~0.001V/мин этого достаточно.
 static constexpr float EMA_ALPHA = 0.25f;
 
-// Максимальный "реалистичный" прыжок напряжения за один цикл (В)
-// Батарея не может измениться на 1V за 30 секунд — это точно помеха
+// Максимальный "реалистичный" прыжок напряжения за один цикл (В).
+// Батарея не может измениться на 1V за 10 секунд — это помеха ADC.
 static constexpr float MAX_REALISTIC_DELTA = 1.0f;
+
+// Сколько подряд "невозможных" замеров считаем уже не помехой, а реальностью.
+// Защита от вечного залипания EMA (например, батарею физически заменили
+// или ADC-пин был отключён и снова подключён).
+static constexpr int MAX_CONSECUTIVE_SPIKES = 3;
 
 // ============================================
 // Конструктор
@@ -80,7 +55,8 @@ BatteryManager::BatteryManager(int adcPin, int chrgPin, int stdbyPin)
       _percent(0),
       _chargeStatus(ChargeStatus::DISCHARGING),
       _powerSource(PowerSource::BATTERY),
-      _initialized(false)
+      _initialized(false),
+      _spikeCount(0)
 {}
 
 // ============================================
@@ -88,14 +64,14 @@ BatteryManager::BatteryManager(int adcPin, int chrgPin, int stdbyPin)
 // ============================================
 void BatteryManager::begin() {
     analogReadResolution(12);
-    analogSetAttenuation(ADC_11db);  // Явно устанавливаем аттенюацию
+    // Аттенюация только для нашего пина, а не глобально —
+    // не мешаем другим потенциальным ADC-потребителям.
+    analogSetPinAttenuation(_adcPin, ADC_11db);
 
     pinMode(_chrgPin, INPUT_PULLUP);
     pinMode(_stdbyPin, INPUT_PULLUP);
 
-    // Первый замер: делаем 3 независимых чтения и берём медиану.
-    // Это надёжнее чем единственный замер при старте, когда ADC
-    // ещё не успел стабилизироваться.
+    // Первый замер: 3 независимых чтения, берём медиану.
     delay(10);
     float v1 = readVoltageRaw();
     delay(5);
@@ -112,8 +88,8 @@ void BatteryManager::begin() {
     else
         initVoltage = v3;
 
-    _voltage    = initVoltage;
-    _emaVoltage = initVoltage;  // Seed EMA с реальным значением
+    _voltage     = initVoltage;
+    _emaVoltage  = initVoltage;  // Seed EMA реальным значением
     _initialized = true;
 
     _percent = voltageToPercent(_voltage);
@@ -121,9 +97,9 @@ void BatteryManager::begin() {
 
     Serial.println("✓ BatteryManager initialized");
     Serial.println("  " + getSummaryString());
-    Serial.printf("  ADC GPIO%d | %d samples | ref %.2fV | divider %.2f | correction %.3f\n",
+    Serial.printf("  ADC GPIO%d (calibrated mV) | %d samples | divider %.2f | correction %.3f\n",
                   _adcPin, BATTERY_ADC_SAMPLES,
-                  BATTERY_ADC_REF_VOLTAGE, BATTERY_DIVIDER_RATIO, BATTERY_ADC_CORRECTION);
+                  BATTERY_DIVIDER_RATIO, BATTERY_ADC_CORRECTION);
     Serial.printf("  Init median: v1=%.3f v2=%.3f v3=%.3f → %.3fV\n",
                   v1, v2, v3, initVoltage);
     if (_voltage > 4.5f)
@@ -138,25 +114,33 @@ void BatteryManager::update() {
     float newVoltage = readVoltageRaw();
 
     if (!_initialized) {
-        // На случай если update() вызван до begin() — инициализируем напрямую
+        // На случай если update() вызван до begin()
         _voltage     = newVoltage;
         _emaVoltage  = newVoltage;
         _initialized = true;
     } else {
-        // ── Шаг 1: Отклоняем физически невозможные значения ──────────────
-        // Батарея не может измениться более чем на MAX_REALISTIC_DELTA
-        // за один цикл проверки. Если разница больше — это помеха ADC.
+        // ── Шаг 1: отклоняем физически невозможные значения ──────────────
         if (fabs(newVoltage - _emaVoltage) > MAX_REALISTIC_DELTA) {
-            Serial.printf("[BAT] Spike rejected: new=%.3fV ema=%.3fV (delta=%.3fV)\n",
-                          newVoltage, _emaVoltage,
-                          fabs(newVoltage - _emaVoltage));
-            // Не обновляем EMA, оставляем старое значение
-            newVoltage = _emaVoltage;
+            _spikeCount++;
+            Serial.printf("[BAT] Spike rejected (%d/%d): new=%.3fV ema=%.3fV\n",
+                          _spikeCount, MAX_CONSECUTIVE_SPIKES,
+                          newVoltage, _emaVoltage);
+
+            if (_spikeCount >= MAX_CONSECUTIVE_SPIKES) {
+                // Это уже не помеха, а новая реальность (замена батареи,
+                // переподключение делителя и т.п.) — пересеиваем EMA.
+                Serial.printf("[BAT] Accepting new level %.3fV (re-seed EMA)\n", newVoltage);
+                _emaVoltage = newVoltage;
+                _spikeCount = 0;
+            } else {
+                // Игнорируем этот замер
+                newVoltage = _emaVoltage;
+            }
+        } else {
+            _spikeCount = 0;
         }
 
         // ── Шаг 2: EMA-фильтр ────────────────────────────────────────────
-        // Плавно движемся к новому значению, не залипая на первом замере.
-        // Формула: ema = alpha * new + (1-alpha) * old
         _emaVoltage = EMA_ALPHA * newVoltage + (1.0f - EMA_ALPHA) * _emaVoltage;
         _voltage    = _emaVoltage;
     }
@@ -164,67 +148,41 @@ void BatteryManager::update() {
     _percent = voltageToPercent(_voltage);
     readChargeStatus();
 
-    // Во время зарядки TP4056 подаёт напряжение выше 4.20V на клеммы.
-    // ADC читает напряжение зарядника, а не реальный SoC батареи.
-    // Порог 4.25V — выше нормального полного заряда (4.20V),
-    // но ниже типичного напряжения зарядника в фазе CC (4.30–4.39V).
+    // Во время зарядки TP4056 подаёт на клеммы напряжение выше 4.20V —
+    // ADC видит зарядник, а не реальный SoC. Клампим на 100%.
     if (_chargeStatus == ChargeStatus::CHARGING && _voltage > 4.25f) {
-        _percent = voltageToPercent(4.20f);
+        _percent = 100;
     }
-}
-// Интерполяция по таблице ADC_NONLIN_TABLE
-// ============================================
-float BatteryManager::adcNonlinCorrection(float vAdc) const {
-    if (vAdc <= ADC_NONLIN_TABLE[0][0])
-        return ADC_NONLIN_TABLE[0][1];
-
-    for (int i = 0; i < NONLIN_POINTS - 1; i++) {
-        float vLow  = ADC_NONLIN_TABLE[i][0];
-        float vHigh = ADC_NONLIN_TABLE[i + 1][0];
-        if (vAdc >= vLow && vAdc < vHigh) {
-            float t = (vAdc - vLow) / (vHigh - vLow);
-            return ADC_NONLIN_TABLE[i][1] +
-                   t * (ADC_NONLIN_TABLE[i + 1][1] - ADC_NONLIN_TABLE[i][1]);
-        }
-    }
-
-    return ADC_NONLIN_TABLE[NONLIN_POINTS - 1][1];
 }
 
 // ============================================
-// Чтение сырого напряжения
-// Улучшено: отбрасываем выбросы (25% снизу и сверху)
-// перед усреднением
+// Чтение сырого напряжения.
+// Используем analogReadMilliVolts() — Arduino-ESP32 сам применяет
+// заводскую eFuse-калибровку ADC (включая компенсацию нелинейности
+// и реального опорного напряжения конкретного чипа).
+// Ручная таблица нелинейности и подбор Vref больше не нужны.
+// Дополнительно: trimmed mean — отбрасываем нижний и верхний квартили.
 // ============================================
 float BatteryManager::readVoltageRaw() {
-    const int N = BATTERY_ADC_SAMPLES;  // должно быть >= 8
-    int samples[N];
+    constexpr int N = BATTERY_ADC_SAMPLES;  // >= 8
+    uint32_t samples[N];
 
     for (int i = 0; i < N; i++) {
-        samples[i] = analogRead(_adcPin);
-        delayMicroseconds(200);  // Чуть больше паузы для стабилизации зарядки входа
+        samples[i] = analogReadMilliVolts(_adcPin);
+        delayMicroseconds(200);  // Пауза для стабилизации входной ёмкости
     }
 
-    // Сортируем и отбрасываем нижние и верхние 25%
     std::sort(samples, samples + N);
-    int trimLow  = N / 4;       // отбрасываем нижний квартиль
-    int trimHigh = N - N / 4;   // отбрасываем верхний квартиль
+    constexpr int trimLow  = N / 4;
+    constexpr int trimHigh = N - N / 4;
 
-    long sum = 0;
+    uint32_t sum = 0;
     for (int i = trimLow; i < trimHigh; i++) {
         sum += samples[i];
     }
-    int validCount = trimHigh - trimLow;
-    float raw = (float)sum / validCount;
+    float vAdc = (float)sum / (trimHigh - trimLow) / 1000.0f;  // мВ → В
 
-    // ADC → напряжение на пине
-    float vAdc = (raw / ADC_MAX_VALUE) * BATTERY_ADC_REF_VOLTAGE;
-
-    // Компенсация нелинейности ADC
-    float nonlinFactor = adcNonlinCorrection(vAdc);
-    vAdc *= nonlinFactor;
-
-    // Делитель напряжения + калибровочный коэффициент
+    // Делитель напряжения + пользовательский калибровочный коэффициент
     float vBat = vAdc * BATTERY_DIVIDER_RATIO * BATTERY_ADC_CORRECTION;
 
     // Отладочный лог раз в минуту
@@ -232,8 +190,8 @@ float BatteryManager::readVoltageRaw() {
     unsigned long now = millis();
     if (now - lastDebug >= 60000) {
         lastDebug = now;
-        Serial.printf("[BAT] raw:%.0f(trim) gpio:%.3fV nonlin:%.3f bat:%.3fV ema:%.3fV\n",
-                      raw, vAdc / nonlinFactor, nonlinFactor, vBat, _emaVoltage);
+        Serial.printf("[BAT] gpio:%.3fV bat:%.3fV ema:%.3fV\n",
+                      vAdc, vBat, _emaVoltage);
     }
 
     if (vBat < 0.8f) return 0.0f;
@@ -300,8 +258,10 @@ void BatteryManager::readChargeStatus() {
         _powerSource  = PowerSource::BATTERY;
     }
     else {
-        // Оба LOW — неопределённое состояние
-        _chargeStatus = ChargeStatus::UNKNOWN;
+        // Оба LOW — на TP4056 это обычно значит "батарея не подключена"
+        // (или мигание CHRG, пойманное в LOW-фазе). Совпадает с описанием
+        // enum в battery_manager.h.
+        _chargeStatus = ChargeStatus::NO_BATTERY;
         _powerSource  = PowerSource::USB;
     }
 }

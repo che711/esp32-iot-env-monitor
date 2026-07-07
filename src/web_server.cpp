@@ -206,17 +206,20 @@ void WeatherWebServer::handleHistory() {
     json.reserve(HISTORY_BUFFER_SIZE);
     
     // Метки времени — время относительно текущего момента (uptime-based, т.к. RTC нет)
-    // Формат: "-59m", "-58m" ... "now"
+    // БАГФИКС: раньше было (SENSOR_INTERVAL / 60000) — при интервале 30с это
+    // целочисленный 0, и ВСЕ метки становились "now". Считаем в секундах.
     json = "{\"labels\":[";
     for (int i = 0; i < count; i++) {
         if (i > 0) json += ",";
-        int minutesAgo = (count - 1 - i) * (int)(SENSOR_INTERVAL / 60000);
-        if (minutesAgo == 0) {
+        long secondsAgo = (long)(count - 1 - i) * (long)(SENSOR_INTERVAL / 1000);
+        if (secondsAgo == 0) {
             json += "\"now\"";
+        } else if (secondsAgo < 60) {
+            json += "\"-" + String(secondsAgo) + "s\"";
+        } else if (secondsAgo % 60 == 0) {
+            json += "\"-" + String(secondsAgo / 60) + "m\"";
         } else {
-            json += "\"-";
-            json += String(minutesAgo);
-            json += "m\"";
+            json += "\"-" + String(secondsAgo / 60.0f, 1) + "m\"";
         }
     }
     
@@ -269,6 +272,7 @@ void WeatherWebServer::handleReboot() {
     setCORSHeaders();
     _server.send(200, "application/json", 
                 "{\"success\":true,\"message\":\"Устройство перезагружается...\"}");
+    _server.client().flush();  // Убедимся, что ответ ушёл клиенту
     
     delay(500);
     ESP.restart();
@@ -294,9 +298,9 @@ String WeatherWebServer::getUptimeString() const {
     
     char buffer[32];
     if (days > 0) {
-        sprintf(buffer, "%dd %02d:%02d:%02d", days, hours, minutes, seconds);
+        snprintf(buffer, sizeof(buffer), "%dd %02d:%02d:%02d", days, hours, minutes, seconds);
     } else {
-        sprintf(buffer, "%02d:%02d:%02d", hours, minutes, seconds);
+        snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d", hours, minutes, seconds);
     }
     
     return String(buffer);
