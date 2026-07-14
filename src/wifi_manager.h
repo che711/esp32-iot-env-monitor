@@ -12,6 +12,9 @@ public:
     void checkConnection(); // Вызывать в loop() — НЕ блокирует
     bool isConnected() const;
 
+    // Modem sleep: true = экономия энергии (батарея), false = мин. задержка (USB)
+    void setPowerSave(bool enable) { WiFi.setSleep(enable); }
+
     // Информация о подключении
     String getIP() const;
     int getRSSI() const;

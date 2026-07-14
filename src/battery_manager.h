@@ -60,10 +60,10 @@ private:
     ChargeStatus _chargeStatus;
     PowerSource  _powerSource;
     bool         _initialized;   // true после первого корректного замера
+    int          _spikeCount;    // Подряд отклонённых "невозможных" замеров
 
     // Внутренние методы
-    float readVoltageRaw();               // Замер с отбрасыванием выбросов
-    float adcNonlinCorrection(float vAdc) const; // Компенсация нелинейности ADC
+    float readVoltageRaw();               // Калиброванный замер (analogReadMilliVolts) с trimmed mean
     int   voltageToPercent(float v);
     void  readChargeStatus();
 };

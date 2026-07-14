@@ -12,6 +12,12 @@
 // ============================================
 float g_cpuUsage = 0.0;
 
+// Переменные в RTC-памяти переживают deep sleep (но не полный сброс питания).
+// g_sleepCycles — сколько раз подряд мы уходили в сон из-за критической батареи.
+// Используется для прогрессивного увеличения длительности сна: 5→10→20→40→60 мин.
+RTC_DATA_ATTR uint32_t g_sleepCycles = 0;
+RTC_DATA_ATTR uint32_t g_bootCount   = 0;
+
 // Objects
 WiFiManager wifiManager(WIFI_SSID, WIFI_PASSWORD);
 SensorManager sensorManager;
@@ -43,34 +49,55 @@ void logBoth(const String& message) {
 // ============================================
 // Deep Sleep Management
 // ============================================
-void enterDeepSleep(unsigned long duration_us, const char* reason) {
+void enterDeepSleep(uint64_t duration_us, const char* reason) {
     Serial.println("\n╔══════════════════════════════════════════╗");
     Serial.println("║         ENTERING DEEP SLEEP MODE         ║");
     Serial.println("╚══════════════════════════════════════════╝");
     Serial.printf("Reason: %s\n", reason);
-    Serial.printf("Duration: %lu seconds\n", duration_us / 1000000ULL);
+    // БАГФИКС: было %lu с 64-битным аргументом (duration/1000000ULL) — UB,
+    // печатался мусор. Теперь %llu.
+    Serial.printf("Duration: %llu seconds (sleep cycle #%lu)\n",
+                  (unsigned long long)(duration_us / 1000000ULL),
+                  (unsigned long)g_sleepCycles);
     Serial.println();
-    
-    // Отправляем уведомление через WebSocket
+
+    // Отправляем уведомление через WebSocket.
+    // БАГФИКС: раньше был просто delay(500) — но без вызова wsServer.loop()
+    // сообщение могло не уйти. Прокачиваем обработчик клиентов ~500 мс.
     if (wifiManager.isConnected()) {
         String msg = "⚠️ DEEP SLEEP: " + String(reason);
         webServer.broadcastLog(msg);
-        webServer.broadcastLog("Duration: " + String(duration_us / 1000000ULL) + "s");
-        delay(500); // Даем время отправить сообщение
+        webServer.broadcastLog("Duration: " + String((unsigned long)(duration_us / 1000000ULL)) + "s");
+        unsigned long t0 = millis();
+        while (millis() - t0 < 500) {
+            webServer.handleClient();
+            delay(10);
+        }
     }
-    
-    // Сохраняем данные если нужно
+
     Serial.println("Shutting down peripherals...");
-    
+    WiFi.disconnect(true);   // Корректно закрываем соединение
+    WiFi.mode(WIFI_OFF);
+
     // Конфигурируем таймер пробуждения
     esp_sleep_enable_timer_wakeup(duration_us);
-    
+
     Serial.println("Going to sleep now...");
     Serial.flush();
     delay(100);
-    
-    // Уходим в deep sleep
+
+    // Уходим в deep sleep (после пробуждения выполнение начнётся с setup())
     esp_deep_sleep_start();
+}
+
+// Длительность сна с прогрессивным удвоением: 5 → 10 → 20 → 40 → 60 (макс) мин
+uint64_t nextSleepDuration() {
+    uint64_t d = DEEP_SLEEP_CRITICAL_DURATION;
+    for (uint32_t i = 0; i < g_sleepCycles && d < DEEP_SLEEP_MAX_DURATION; i++) {
+        d *= 2;
+    }
+    if (d > DEEP_SLEEP_MAX_DURATION) d = DEEP_SLEEP_MAX_DURATION;
+    return d;
 }
 
 void checkBatteryAndSleep() {
@@ -79,23 +106,24 @@ void checkBatteryAndSleep() {
     if (uptime < MIN_UPTIME_BEFORE_SLEEP) {
         return;
     }
-    
+
     // Не проверяем, если подключено USB
     if (batteryManager.isUsbConnected()) {
+        // USB вернулся — сбрасываем счётчик циклов сна
+        if (g_sleepCycles > 0) g_sleepCycles = 0;
         return;
     }
-    
+
     // Критический уровень батареи
     if (batteryManager.isCriticalBattery() && DEEP_SLEEP_ENABLED) {
         String reason = "Critical battery: " + String(batteryManager.getVoltage(), 2) + "V";
-        enterDeepSleep(DEEP_SLEEP_CRITICAL_DURATION, reason.c_str());
+        uint64_t duration = nextSleepDuration();  // 1-й сон = 5 мин, дальше ×2
+        g_sleepCycles++;
+        enterDeepSleep(duration, reason.c_str());
+    } else if (g_sleepCycles > 0) {
+        // Батарея восстановилась выше критического порога
+        g_sleepCycles = 0;
     }
-    
-    // Низкий уровень батареи (можно добавить дополнительную логику)
-    // if (batteryManager.isLowBattery() && DEEP_SLEEP_ENABLED) {
-    //     String reason = "Low battery: " + String(batteryManager.getVoltage(), 2) + "V";
-    //     enterDeepSleep(DEEP_SLEEP_LOW_DURATION, reason.c_str());
-    // }
 }
 
 // ============================================
@@ -209,32 +237,48 @@ void printStatus() {
 // ============================================
 void setup() {
     systemStartTime = millis();
-    
+    g_bootCount++;
+
+    bool wokeFromSleep =
+        (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER);
+
     // USB CDC Serial init (ESP32-C3 specific)
     Serial.begin(SERIAL_BAUD);
-    {
+    if (!wokeFromSleep) {
+        // Ждём хост только при обычном старте. При пробуждении из deep sleep
+        // на батарее USB-хоста нет — ждать 5 секунд значит впустую жечь заряд
+        // в КАЖДОМ цикле сна.
         unsigned long t0 = millis();
         while (!Serial && (millis() - t0 < 5000)) {
             delay(10);
         }
+        delay(300);
     }
-    delay(300);
 
     printSystemInfo();
-    
+    Serial.printf("Boot #%lu | Sleep cycles: %lu\n\n",
+                  (unsigned long)g_bootCount, (unsigned long)g_sleepCycles);
+
     // Initialize Battery Manager
     Serial.println("=== Initializing Battery Manager ===");
     batteryManager.begin();
     Serial.println();
-    
-    // Check battery before starting everything else
+
+    // Check battery before starting everything else.
+    // При пробуждении из сна с критической батареей мы окажемся здесь через
+    // ~1 секунду после старта — WiFi и сенсор даже не начнут инициализироваться.
     if (batteryManager.isCriticalBattery() && !batteryManager.isUsbConnected()) {
         Serial.println("⚠️ CRITICAL: Battery too low to start. Entering deep sleep immediately.");
         if (DEEP_SLEEP_ENABLED) {
-            enterDeepSleep(DEEP_SLEEP_CRITICAL_DURATION, "Critical battery on boot");
+            uint64_t duration = nextSleepDuration();
+            g_sleepCycles++;
+            enterDeepSleep(duration, "Critical battery on boot");
         }
         // DEEP_SLEEP_ENABLED=false: print warning and continue (developer/debug mode)
         Serial.println("⚠️ DEEP_SLEEP_ENABLED=false — continuing despite critical battery.");
+    } else if (wokeFromSleep && !batteryManager.isCriticalBattery()) {
+        // Проснулись, а батарея уже в норме (зарядили) — сбрасываем счётчик
+        g_sleepCycles = 0;
     }
 
     // Initialize sensor
@@ -258,6 +302,10 @@ void setup() {
     if (!wifiManager.begin()) {
         Serial.println("Cannot connect to WiFi");
         Serial.println("  Working offline — web interface unavailable");
+    } else if (WIFI_POWER_SAVE_ON_BATTERY && !batteryManager.isUsbConnected()) {
+        // Стартуем на батарее — сразу включаем modem sleep
+        wifiManager.setPowerSave(true);
+        Serial.println("🔋 Battery power detected — WiFi power save ON");
     }
 
     // Launch web-server
@@ -321,15 +369,31 @@ void loop() {
     // Check battery status
     if (currentMillis - lastBatteryCheck >= BATTERY_CHECK_INTERVAL) {
         lastBatteryCheck = currentMillis;
+        PowerSource prevSource = batteryManager.getPowerSource();
         batteryManager.update();
-        
+
+        // Автопереключение энергосбережения WiFi по источнику питания:
+        // батарея → modem sleep включён, USB → выключен (минимальная задержка)
+        if (WIFI_POWER_SAVE_ON_BATTERY &&
+            batteryManager.getPowerSource() != prevSource) {
+            bool onBattery = !batteryManager.isUsbConnected();
+            wifiManager.setPowerSave(onBattery);
+            logBoth(onBattery ? "🔋 On battery — WiFi power save ON"
+                              : "🔌 On USB — WiFi power save OFF");
+        }
+
         // Check if we need to enter deep sleep
         checkBatteryAndSleep();
-        
-        // Log battery status if low
+
+        // Log battery status if low — не чаще LOW_BATTERY_LOG_INTERVAL,
+        // иначе спамим каждые 10 секунд
         if (batteryManager.isLowBattery() && !batteryManager.isUsbConnected()) {
-            logBoth("⚠️ Low battery: " + String(batteryManager.getVoltage(), 2) + "V (" + 
-                   String(batteryManager.getPercent()) + "%)");
+            static unsigned long lastLowLog = 0;
+            if (lastLowLog == 0 || currentMillis - lastLowLog >= LOW_BATTERY_LOG_INTERVAL) {
+                lastLowLog = currentMillis;
+                logBoth("⚠️ Low battery: " + String(batteryManager.getVoltage(), 2) + "V (" +
+                       String(batteryManager.getPercent()) + "%)");
+            }
         }
     }
 
