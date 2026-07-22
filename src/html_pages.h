@@ -13,8 +13,9 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
 /* ============ TOKENS — light / purple gradient (default) ============ */
 :root{
   --bg-page:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
-  --card:rgba(255,255,255,.94);
-  --card-2:#f6f7fb;
+  /* Мягкий лавандовый вместо чистого белого — не режет глаз на фиолетовом фоне */
+  --card:rgba(244,242,251,.96);
+  --card-2:#eae7f6;
   --line:rgba(102,126,234,.18);
   --line-soft:rgba(102,126,234,.10);
   --text:#2d3348;
@@ -28,7 +29,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
   --warn:#e6a700;
   --danger:#e5484d;
   --console:#1e2233;
-  --chip:#f1f3fa;
+  --chip:#e7e4f4;
   --grad-brand:linear-gradient(135deg,#667eea,#764ba2);
   --shadow:0 4px 16px rgba(31,38,135,.14);
   --shadow-hover:0 12px 32px rgba(31,38,135,.22);
@@ -175,6 +176,28 @@ body.dark .comfort-poor{color:#ff8a90;background:rgba(229,72,77,.16)}
 .sparkline-wrap{padding-top:12px;border-top:1px solid var(--line-soft)}
 .sparkline-label{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:6px}
 canvas.sparkline{height:40px!important;min-height:40px!important;max-height:40px!important;width:100%!important;display:block}
+
+/* ============ FRIENDLY COLOURED BLOCKS (light theme only) ============ */
+/* Шапка Environment — мягкий сине-фиолетовый градиент вместо простого белого */
+body:not(.dark) .header{
+  background:linear-gradient(150deg,#f2efff 0%,#eaf3ff 55%,#ffffff 100%);
+  border:1px solid rgba(102,126,234,.16);
+}
+/* Каждая сенсорная карточка тонируется в свой акцентный цвет (--acc),
+   который к тому же меняется вслед за значением (updateCardColors). */
+body:not(.dark) .sensor-card{
+  background:linear-gradient(155deg,
+    color-mix(in srgb,var(--acc) 26%,#fff) 0%,
+    color-mix(in srgb,var(--acc) 14%,#fff) 55%,
+    color-mix(in srgb,var(--acc) 8%,#fff) 100%);
+  border:1px solid color-mix(in srgb,var(--acc) 34%,transparent);
+}
+body:not(.dark) .sensor-card .sensor-label{color:color-mix(in srgb,var(--acc) 60%,#3a3a48)}
+body:not(.dark) .sensor-card .minmax{
+  background:color-mix(in srgb,var(--acc) 12%,#fff);
+  border:1px solid color-mix(in srgb,var(--acc) 18%,transparent);
+}
+body:not(.dark) .sensor-card .sparkline-wrap{border-top-color:color-mix(in srgb,var(--acc) 22%,transparent)}
 
 /* --- Unit toggle (C/F) --- */
 .temp-unit-toggle{display:flex;align-items:center;gap:9px;margin-bottom:12px}
