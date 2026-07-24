@@ -177,27 +177,39 @@ body.dark .comfort-poor{color:#ff8a90;background:rgba(229,72,77,.16)}
 .sparkline-label{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:6px}
 canvas.sparkline{height:40px!important;min-height:40px!important;max-height:40px!important;width:100%!important;display:block}
 
-/* ============ FRIENDLY COLOURED BLOCKS (light theme only) ============ */
+/* ============ VIVID COLOURED SENSOR CARDS (light theme) ============ */
 /* Шапка Environment — мягкий сине-фиолетовый градиент вместо простого белого */
 body:not(.dark) .header{
   background:linear-gradient(150deg,#f2efff 0%,#eaf3ff 55%,#ffffff 100%);
   border:1px solid rgba(102,126,234,.16);
 }
-/* Каждая сенсорная карточка тонируется в свой акцентный цвет (--acc),
-   который к тому же меняется вслед за значением (updateCardColors). */
-body:not(.dark) .sensor-card{
-  background:linear-gradient(155deg,
-    color-mix(in srgb,var(--acc) 26%,#fff) 0%,
-    color-mix(in srgb,var(--acc) 14%,#fff) 55%,
-    color-mix(in srgb,var(--acc) 8%,#fff) 100%);
-  border:1px solid color-mix(in srgb,var(--acc) 34%,transparent);
-}
-body:not(.dark) .sensor-card .sensor-label{color:color-mix(in srgb,var(--acc) 60%,#3a3a48)}
+
+/* Каждая карточка залита своим сплошным градиентом, текст белый */
+body:not(.dark) .temp-card{background:linear-gradient(150deg,#7178d4 0%,#8b7ee6 55%,#a48fe0 100%)}
+body:not(.dark) .humidity-card{background:linear-gradient(150deg,#4a9be6 0%,#45b3dd 55%,#42cfd6 100%)}
+body:not(.dark) .dewpoint-card{background:linear-gradient(150deg,#ec6ba6 0%,#f087aa 55%,#f6a6ad 100%)}
+body:not(.dark) .heatindex-card{background:linear-gradient(150deg,#f28f5e 0%,#f4b158 55%,#f6d24f 100%)}
+
+/* Белый текст и полупрозрачные плашки поверх цветного фона */
+body:not(.dark) .sensor-card{border:none;color:#fff}
+body:not(.dark) .sensor-card .sensor-label,
+body:not(.dark) .sensor-card .sensor-value,
+body:not(.dark) .sensor-card .sensor-unit,
+body:not(.dark) .sensor-card .avg-value,
+body:not(.dark) .sensor-card .minmax-value,
+body:not(.dark) .sensor-card .toggle-label{color:#fff}
+body:not(.dark) .sensor-card .mm-label,
+body:not(.dark) .sensor-card .sparkline-label,
+body:not(.dark) .sensor-card .sensor-description{color:rgba(255,255,255,.82)}
+body:not(.dark) .sensor-card .sensor-header svg{stroke:#fff}
+body:not(.dark) .sensor-card::before{background:rgba(255,255,255,.30)}
 body:not(.dark) .sensor-card .minmax{
-  background:color-mix(in srgb,var(--acc) 12%,#fff);
-  border:1px solid color-mix(in srgb,var(--acc) 18%,transparent);
+  background:rgba(255,255,255,.16);
+  border:1px solid rgba(255,255,255,.14);
 }
-body:not(.dark) .sensor-card .sparkline-wrap{border-top-color:color-mix(in srgb,var(--acc) 22%,transparent)}
+body:not(.dark) .sensor-card .sparkline-wrap{border-top-color:rgba(255,255,255,.22)}
+body:not(.dark) .sensor-card .slider{background:rgba(255,255,255,.28)}
+body:not(.dark) .sensor-card .comfort-indicator{background:rgba(255,255,255,.20)!important;color:#fff!important}
 
 /* --- Unit toggle (C/F) --- */
 .temp-unit-toggle{display:flex;align-items:center;gap:9px;margin-bottom:12px}
