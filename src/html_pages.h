@@ -106,11 +106,6 @@ body.dark .status.offline{color:#ff8a90;background:rgba(229,72,77,.16)}
 .status-dot{width:8px;height:8px;border-radius:50%;background:currentColor;animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
 #lastUpdateBadge{font-variant-numeric:tabular-nums}
-.countdown-wrap{margin-top:16px;display:flex;align-items:center;gap:10px}
-.countdown-bar-track{flex:1;height:4px;background:var(--line-soft);border-radius:2px;overflow:hidden}
-.countdown-bar-fill{height:100%;border-radius:2px;background:var(--grad-brand)}
-.countdown-bar-fill.warn{background:linear-gradient(90deg,#f7971e,#ffd200)}
-.countdown-text{font-family:var(--font-mono);font-size:11px;color:var(--muted);white-space:nowrap;min-width:70px;text-align:right}
 
 /* ============ FLOATING CONTROLS ============ */
 .fab{
@@ -438,10 +433,6 @@ input:checked+.slider:before{transform:translateX(19px)}
 <div class="status-container">
 <div id="statusBadge" class="status online"><div class="status-dot"></div><span>Connected</span></div>
 <div id="lastUpdateBadge" class="status"><span id="lastUpdate">Loading...</span></div>
-</div>
-<div class="countdown-wrap">
-<div class="countdown-bar-track"><div class="countdown-bar-fill" id="cdFill" style="width:100%"></div></div>
-<span class="countdown-text" id="cdText">--</span>
 </div>
 </div>
 
@@ -949,7 +940,6 @@ function updateData(){
     var te=document.getElementById('tempComfort');te.textContent=tc.t;te.className='comfort-indicator comfort-'+tc.l;
     var he=document.getElementById('humidComfort');he.textContent=hc.t;he.className='comfort-indicator comfort-'+hc.l;
     document.getElementById('lastUpdate').textContent=new Date().toLocaleTimeString('ru-RU');
-    startCountdown();
     errCnt=0;
     document.getElementById('statusBadge').className='status online';
     document.getElementById('statusBadge').innerHTML='<div class="status-dot"></div><span>Connected</span>';
@@ -1132,28 +1122,6 @@ function setWeatherFromData(tempC,humid){
   if(mode!==pMode)updateParticleMode(mode);
 }
 
-/* ===== COUNTDOWN ===== */
-var CD_TOTAL=10000;
-var cdStart=0;
-var cdRAF=null;
-function startCountdown(){
-  cdStart=performance.now();
-  if(!cdRAF)tickCountdown();
-}
-function tickCountdown(){
-  cdRAF=requestAnimationFrame(tickCountdown);
-  var elapsed=performance.now()-cdStart;
-  var remaining=Math.max(0,CD_TOTAL-elapsed);
-  var pct=(remaining/CD_TOTAL)*100;
-  var secs=Math.ceil(remaining/1000);
-  var fill=document.getElementById('cdFill');
-  var text=document.getElementById('cdText');
-  if(!fill||!text)return;
-  fill.style.width=pct+'%';
-  fill.classList.toggle('warn',secs<=3&&remaining>0);
-  text.textContent=remaining>50?'next in '+secs+'s':'updating...';
-}
-
 /* ===== INIT ===== */
 document.addEventListener('DOMContentLoaded',function(){
   applyTheme();
@@ -1165,7 +1133,6 @@ document.addEventListener('DOMContentLoaded',function(){
   updateData();
   updateStats();
   updateHistory();
-  startCountdown();
   iU=setInterval(updateData,10000);
   iS=setInterval(updateStats,10000);
   iH=setInterval(updateHistory,15000);
