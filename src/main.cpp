@@ -1,11 +1,14 @@
 #include <Arduino.h>
 #include <esp_sleep.h>
+#include <Wire.h>
 #include "config.h"
 #include "wifi_manager.h"
 #include "sensor_manager.h"
 #include "battery_manager.h"
 #include "web_server.h"
 #include "calculations.h"
+#include "display_manager.h"
+#include "button.h"
 
 // ============================================
 // Global variables
@@ -23,6 +26,8 @@ WiFiManager wifiManager(WIFI_SSID, WIFI_PASSWORD);
 SensorManager sensorManager;
 BatteryManager batteryManager(BATTERY_ADC_PIN, BATTERY_CHRG_PIN, BATTERY_STDBY_PIN);
 WeatherWebServer webServer(&sensorManager, &wifiManager, &batteryManager);
+DisplayManager displayManager(&sensorManager, &wifiManager, &batteryManager);
+ButtonManager button(BUTTON_PIN);
 
 // Timers
 unsigned long lastSensorRead = 0;
@@ -76,6 +81,13 @@ void enterDeepSleep(uint64_t duration_us, const char* reason) {
     }
 
     Serial.println("Shutting down peripherals...");
+
+    // Показываем причину сна и гасим матрицу. Без этого OLED остался бы
+    // светиться весь deep sleep и съел бы всю экономию заряда.
+    displayManager.showMessage("DEEP SLEEP", reason, "display off");
+    delay(1500);
+    displayManager.powerOff();
+
     WiFi.disconnect(true);   // Корректно закрываем соединение
     WiFi.mode(WIFI_OFF);
 
@@ -281,6 +293,25 @@ void setup() {
         g_sleepCycles = 0;
     }
 
+    // Initialize I2C bus (shared by AHT10 and SSD1306).
+    // Инициализируем здесь, ДО обоих устройств: раньше это делал
+    // sensorManager.begin(), но теперь шина общая и хозяин у неё один.
+    Serial.println("=== Initializing I2C ===");
+    Wire.begin(I2C_SDA, I2C_SCL);
+    Wire.setClock(I2C_FREQ);
+    delay(100);
+    Serial.printf("SDA=GPIO%d  SCL=GPIO%d  %lu kHz\n\n",
+                  I2C_SDA, I2C_SCL, (unsigned long)(I2C_FREQ / 1000));
+
+    // Initialize display and button.
+    // Дисплей поднимаем ДО датчика — тогда фатальную ошибку AHT10
+    // можно показать на экране, а не только в Serial.
+    Serial.println("=== Initializing Display ===");
+    displayManager.begin();
+    displayManager.showSplash("v3.1");
+    button.begin();
+    Serial.println();
+
     // Initialize sensor
     Serial.println("=== Initializing Sensor ===");
     if (!sensorManager.begin()) {
@@ -294,6 +325,8 @@ void setup() {
         Serial.println("  2. Damaged sensor");
         Serial.println("  3. Incorrect GPIO pins in config.h");
         Serial.println("Check the connection and restart the device");
+        displayManager.showMessage("SENSOR ERROR", "AHT10 not found",
+                                   "check I2C wiring");
         while (1) { delay(250); }
     }
 
@@ -366,6 +399,29 @@ void loop() {
     unsigned long loopStart    = micros();
     unsigned long currentMillis = millis();
 
+    // Button: короткое нажатие — следующий экран, долгое — вкл/выкл дисплея.
+    // Опрашиваем каждую итерацию, иначе нажатия будут теряться.
+    switch (button.poll()) {
+        case ButtonEvent::SHORT_PRESS:
+            // Если экран погашен автогашением, первое нажатие только будит его,
+            // не пролистывая — иначе непонятно, какой экран ты включил
+            if (displayManager.isOn()) {
+                displayManager.nextScreen();
+            }
+            displayManager.wake();
+            break;
+
+        case ButtonEvent::LONG_PRESS:
+            displayManager.togglePower();
+            logBoth(displayManager.isOn() ? "Display ON (button)"
+                                          : "Display OFF (button)");
+            break;
+
+        case ButtonEvent::NONE:
+        default:
+            break;
+    }
+
     // Check battery status
     if (currentMillis - lastBatteryCheck >= BATTERY_CHECK_INTERVAL) {
         lastBatteryCheck = currentMillis;
@@ -415,6 +471,10 @@ void loop() {
     // Web request processing and WebSocket.
     // Вызываем ВСЕГДА — веб-сервер должен отвечать даже во время реконнекта WiFi.
     webServer.handleClient();
+
+    // Refresh OLED. Внутри стоит свой интервал (DISPLAY_UPDATE_INTERVAL)
+    // и политика автогашения на батарее — вызывать можно каждый тик.
+    displayManager.update();
 
     // Read sensor data
     if (currentMillis - lastSensorRead >= SENSOR_INTERVAL) {

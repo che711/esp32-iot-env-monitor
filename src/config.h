@@ -16,7 +16,10 @@ inline constexpr unsigned long WIFI_TIMEOUT   = 15000;
 // ============================================
 inline constexpr int      I2C_SDA  = 8;
 inline constexpr int      I2C_SCL  = 9;
-inline constexpr uint32_t I2C_FREQ = 100000;
+// 400 кГц вместо 100 кГц: полный кадр OLED (1024 байта) уходит за ~23 мс
+// вместо ~90 мс — иначе обновление дисплея заметно тормозит loop() и
+// обработку веб-запросов. AHT10 и SSD1306 оба держат 400 кГц.
+inline constexpr uint32_t I2C_FREQ = 400000;
 
 // ============================================
 // GPIO Pin Configuration
@@ -24,6 +27,13 @@ inline constexpr uint32_t I2C_FREQ = 100000;
 // LED отключен, чтобы не конфликтовать с I2C_SDA
 inline constexpr int  LED_BUILTIN_PIN = -1;    // Отключен (был конфликт с GPIO8)
 inline constexpr bool LED_ENABLED     = false; // Отключить для экономии энергии
+
+// Кнопка переключения экранов OLED.
+// GPIO10 выбран сознательно: он не strapping-пин (в отличие от GPIO2/8/9)
+// и не входит в GPIO4/GPIO5, которые зарезервированы под возможный перенос
+// CHRG с проблемного GPIO2 (см. комментарий ниже).
+// Подключение: кнопка между GPIO10 и GND, внутренний pull-up включается кодом.
+inline constexpr int BUTTON_PIN = 10;
 
 // Battery Manager Pins (TP4056 + делитель напряжения)
 inline constexpr int BATTERY_ADC_PIN  = 0;  // GPIO0 - ADC для измерения напряжения
@@ -113,6 +123,38 @@ inline constexpr unsigned long LOW_BATTERY_LOG_INTERVAL = 300000;
 // WiFi modem sleep при питании от батареи (экономит ~40-60 мА в среднем
 // ценой чуть большей задержки ответа веб-интерфейса). На USB — отключается.
 inline constexpr bool WIFI_POWER_SAVE_ON_BATTERY = true;
+
+// ============================================
+// OLED Display Configuration (SSD1306 0.96" 128x64, I2C)
+// ============================================
+// Дисплей сидит на той же шине, что и AHT10 (GPIO8/GPIO9).
+// Адреса не конфликтуют: AHT10 = 0x38, SSD1306 = 0x3C (или 0x3D).
+inline constexpr bool    DISPLAY_ENABLED   = true;
+inline constexpr uint8_t DISPLAY_I2C_ADDR  = 0x3C;  // 0x3D — если на плате перепаян джампер
+inline constexpr int     DISPLAY_WIDTH     = 128;
+inline constexpr int     DISPLAY_HEIGHT    = 64;
+
+// Как часто перерисовывать экран. Каждая перерисовка — блокирующая
+// передача ~1 КБ по I2C (~23 мс на 400 кГц), поэтому чаще 1 раза в секунду
+// смысла нет: данные датчика обновляются раз в SENSOR_INTERVAL.
+inline constexpr unsigned long DISPLAY_UPDATE_INTERVAL = 1000;
+
+// Автогашение при работе от батареи. Активный SSD1306 ест 10-20 мА —
+// это сопоставимо со всем остальным потреблением платы, поэтому на батарее
+// экран гасится через DISPLAY_BATTERY_TIMEOUT бездействия и будится кнопкой.
+// На USB экран горит всегда.
+inline constexpr bool          DISPLAY_AUTO_OFF_ON_BATTERY = true;
+inline constexpr unsigned long DISPLAY_BATTERY_TIMEOUT     = 60000;  // 60 сек
+
+// Автолистание экранов. По умолчанию выключено — экраны листает кнопка.
+inline constexpr bool          DISPLAY_AUTO_ROTATE          = false;
+inline constexpr unsigned long DISPLAY_AUTO_ROTATE_INTERVAL = 8000;
+
+// ============================================
+// Button Configuration
+// ============================================
+inline constexpr unsigned long BUTTON_DEBOUNCE_MS   = 50;   // Антидребезг
+inline constexpr unsigned long BUTTON_LONG_PRESS_MS = 800;  // Порог долгого нажатия
 
 // ============================================
 // Deep Sleep Configuration

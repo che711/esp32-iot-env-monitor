@@ -1,6 +1,5 @@
 #include "sensor_manager.h"
 #include "config.h"
-#include <Wire.h>
 
 SensorManager::SensorManager() 
     : _temperature(0.0), _humidity(0.0),
@@ -22,11 +21,8 @@ SensorManager::~SensorManager() {
 }
 
 bool SensorManager::begin() {
-    Serial.println("Initialization I2C...");
-    Wire.begin(I2C_SDA, I2C_SCL);
-    Wire.setClock(I2C_FREQ);
-    delay(100);
-    
+    // Wire.begin() перенесён в setup() main.cpp: шина теперь общая с OLED,
+    // и инициализировать её должен кто-то один, до обоих устройств
     Serial.println("Initialization AHT10...");
     if (!_aht.begin()) {
         Serial.println("✗ ERROR: AHT10 not found!");
