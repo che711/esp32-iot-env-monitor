@@ -36,28 +36,56 @@ A modern weather station based on the **ESP32 Super Mini** with the **AHT10** se
 ### Equipment
 - **ESP32 Super Mini** - Microcontroller
 - **AHT10** - temperature and humidity sensor (I2C)
+- **SSD1306 0.96" OLED 128x64 (I2C)** - local display, optional
+- **Tactile button** - screen switching, optional
 - Wires, a soldering iron, solder, rosin, and other components for assembly
   
 ### Software
 - **PlatformIO** or **Arduino IDE**
 - **Libraries:**
   - Adafruit_AHTX0
+  - Adafruit_SSD1306 + Adafruit_GFX
   - WebServer (built into ESP32)
   - WiFi (built into ESP32)
 
 
 ##  Connection diagram
 
+The sensor and the display share one I2C bus — their addresses do not collide
+(AHT10 = `0x38`, SSD1306 = `0x3C`), so SDA/SCL are wired in parallel.
+
 ```
-ESP32 Super Mini → AHT10
-─────────────────────────
-3.3V              → VCC
-GND               → GND
-GPIO 8            → SDA
-GPIO 9            → SCL
+ESP32 Super Mini → AHT10 / SSD1306
+──────────────────────────────────
+3.3V              → VCC  (both)
+GND               → GND  (both)
+GPIO 8            → SDA  (both)
+GPIO 9            → SCL  (both)
+
+ESP32 Super Mini → Button
+──────────────────────────────────
+GPIO 10           → one leg
+GND               → other leg
 ```
 
+The button needs no external resistor — the internal pull-up is enabled in code.
+
 **Important:** ESP32 Super Mini works on 3.3V! Do not connect 5V to the sensor!
+
+### Display and button behaviour
+
+- **Short press** — next screen: `MAIN` (temperature / humidity) → `MIN/MAX/AVG`
+  → `SYSTEM` (IP, WiFi, RAM, CPU, uptime) → `BATTERY`.
+- **Long press (0.8 s)** — turn the display on/off manually.
+- **On battery** the display auto-switches off after 60 s of inactivity and is
+  woken by the button: an active SSD1306 draws 10-20 mA, which is comparable to
+  the rest of the board. On USB power it stays on permanently.
+- Before entering deep sleep the display is powered down explicitly.
+- If the display is not present on the bus, the firmware logs it and continues
+  normally — nothing else depends on it.
+
+Both are optional: set `DISPLAY_ENABLED = false` in [config.h](src/config.h) to
+build without the screen.
 
 
 
@@ -113,6 +141,8 @@ esp32-weather-station/
 │   ├── main.cpp                  # Main program file
 │   ├── config.h                  # Configuration (WiFi, pins, settings)
 │   ├── sensor_manager.h/cpp      # AHT10 sensor management
+│   ├── display_manager.h/cpp     # SSD1306 OLED screens and power policy
+│   ├── button.h/cpp              # Debounced button (short / long press)
 │   ├── wifi_manager.h/cpp        # WiFi connection management
 │   ├── web_server.h/cpp          # Web server and API
 │   ├── calculations.h/cpp        # Calculations (dew point, thermal index)
