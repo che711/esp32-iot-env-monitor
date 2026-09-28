@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
@@ -20,6 +20,8 @@ env:
 jobs:
   firmware:
     name: Build firmware + static analysis
+    # PR из этого же репозитория уже проверен push-запуском ветки — не гоняем дважды
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -62,6 +64,8 @@ jobs:
 
   unit-tests:
     name: Unit tests (native)
+    # PR из этого же репозитория уже проверен push-запуском ветки — не гоняем дважды
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -82,8 +86,10 @@ jobs:
       - name: Run tests
         run: pio test -e native
 
-  ui-tests:
-    name: Web UI tests (mock device)
+  mock-tests:
+    name: UI + API tests (mock device)
+    # PR из этого же репозитория уже проверен push-запуском ветки — не гоняем дважды
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -99,21 +105,28 @@ jobs:
           pip install -r test/requirements-ci.txt
           python -m playwright install --with-deps chromium
 
-      - name: Run tests
+      # ui/ — тесты интерфейса, api/ и web/ — те же тесты, что гоняются на плате
+      - name: Run pytest (ui, api, web)
         working-directory: test
-        run: pytest ui
+        run: pytest ui api web --mock
+
+      - name: Run bash API smoke tests
+        run: |
+          python test/mock_server.py --port 8080 &
+          for _ in $(seq 20); do curl -sf -o /dev/null http://127.0.0.1:8080/ && break; sleep 0.5; done
+          bash test/api/test_api.sh --host 127.0.0.1:8080
 
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: ui-test-report
+          name: test-report
           path: test/test-reports/
           retention-days: 7
 
   release:
     name: GitHub release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [firmware, unit-tests, ui-tests]
+    needs: [firmware, unit-tests, mock-tests]
     runs-on: ubuntu-latest
     permissions:
       contents: write

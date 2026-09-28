@@ -10,6 +10,7 @@ import re
 import time
 
 import pytest
+from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page, expect
 
 pytestmark = pytest.mark.web
@@ -25,11 +26,28 @@ NUMBER = re.compile(r"^-?\d+\.\d$")
 # Fixtures
 # ═══════════════════════════════════════════════════════════════
 
+def open_dashboard(page: Page, url: str, attempts: int = 3):
+    """Открыть страницу и дождаться первых данных.
+
+    У ESP32 мало TCP-соединений: при частых перезагрузках страницы (а тесты
+    открывают её десятки раз подряд, каждый раз с fetch'ами и WebSocket)
+    плата изредка сбрасывает новое соединение. Это не ошибка интерфейса,
+    поэтому такой сброс повторяем.
+    """
+    for attempt in range(attempts):
+        try:
+            page.goto(url)
+            break
+        except PlaywrightError as e:
+            if "ERR_CONNECTION_RESET" not in str(e) or attempt == attempts - 1:
+                raise
+            page.wait_for_timeout(1000)
+    expect(page.locator("#temperature")).not_to_have_text("--", timeout=SLACK_MS)
+
 @pytest.fixture(scope="function")
 def page(page: Page, base_url):
     """Open the dashboard and wait for the first data update"""
-    page.goto(base_url)
-    expect(page.locator("#temperature")).not_to_have_text("--", timeout=SLACK_MS)
+    open_dashboard(page, base_url)
     return page
 
 # ═══════════════════════════════════════════════════════════════
@@ -51,8 +69,7 @@ class TestPageLoad:
         """Page should not throw JavaScript exceptions"""
         errors = []
         page.on("pageerror", lambda exc: errors.append(str(exc)))
-        page.reload()
-        expect(page.locator("#temperature")).not_to_have_text("--", timeout=SLACK_MS)
+        open_dashboard(page, page.url)
         assert errors == [], f"JavaScript errors: {errors}"
 
     @pytest.mark.parametrize("viewport", [
@@ -303,8 +320,7 @@ class TestPerformance:
             console_errors.append(msg.text) if msg.type == "error" else None
         )
 
-        page.reload()
-        expect(page.locator("#temperature")).not_to_have_text("--", timeout=SLACK_MS)
+        open_dashboard(page, page.url)
         page.wait_for_timeout(2000)
 
         if mock_mode:
