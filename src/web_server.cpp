@@ -2,6 +2,7 @@
 #include "html_pages.h"
 #include "config.h"
 #include <esp_system.h>
+#include <esp_timer.h>
 
 // Внешняя переменная из main.cpp
 extern float g_cpuUsage;
@@ -159,6 +160,7 @@ void WeatherWebServer::handleStats() {
     json = "{";
     json += "\"uptime\":\"" + getUptimeString() + "\"";
     json += ",\"firmware\":\"" + String(FIRMWARE_VERSION) + "\"";
+    json += ",\"millisOverflows\":" + String(getMillisOverflowCount());
     json += ",\"freeHeap\":\"" + formatBytes(freeHeap) + "\"";
     json += ",\"freeHeapRaw\":" + String(freeHeap);
     json += ",\"totalHeapRaw\":" + String(totalHeap);
@@ -319,6 +321,14 @@ String WeatherWebServer::formatBytes(size_t bytes) const {
 
 float WeatherWebServer::getCPUUsage() const {
     return g_cpuUsage;
+}
+
+// Сколько раз 32-битный millis() переполнился с загрузки чипа (раз в
+// 2^32 мс ≈ 49,7 суток) — без перезагрузки uptime в этот момент уходит в 0.
+// В Arduino-ядре millis() = esp_timer_get_time() / 1000, а esp_timer
+// 64-битный и не переполняется, поэтому счёт точный и не требует состояния.
+uint32_t WeatherWebServer::getMillisOverflowCount() const {
+    return (uint32_t)(((uint64_t)esp_timer_get_time() / 1000ULL) >> 32);
 }
 
 unsigned long WeatherWebServer::getRequestCount() const {

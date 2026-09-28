@@ -499,7 +499,11 @@ input:checked+.slider:before{transform:translateX(19px)}
 <div class="card">
 <h3>System &amp; control</h3>
 <div class="info-grid">
-<div class="info-item"><div class="info-label">Uptime</div><div class="info-value" id="uptime">--</div></div>
+<div class="info-item">
+<div class="info-label">Uptime</div>
+<div class="info-value" id="uptime">--</div>
+<div class="battery-sub" title="32-bit millis() wraps every ~49.7 days; uptime restarts from 0 without a reboot">millis() overflows: <span id="millisOverflows">--</span></div>
+</div>
 <div class="info-item">
 <div class="info-label">RAM</div>
 <div class="info-value" id="freeHeap">--</div>
@@ -955,6 +959,7 @@ function updateData(){
 function updateStats(){
   fetch('/stats').then(function(r){return r.json();}).then(function(d){
     document.getElementById('uptime').textContent=d.uptime;
+    if(d.millisOverflows!=null)document.getElementById('millisOverflows').textContent=d.millisOverflows;
     if(d.firmware){
       document.getElementById('fwVersion').textContent='v'+d.firmware;
       document.getElementById('fwBadge').style.display='';

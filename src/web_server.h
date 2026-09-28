@@ -44,7 +44,8 @@ private:
     String getUptimeString() const;
     String formatBytes(size_t bytes) const;
     float getCPUUsage() const;
-    
+    uint32_t getMillisOverflowCount() const;
+
     // CORS headers
     void setCORSHeaders();
 };
