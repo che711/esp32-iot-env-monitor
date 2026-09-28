@@ -217,12 +217,17 @@ input:checked+.slider{background:var(--acc-temp)}
 input:checked+.slider:before{transform:translateX(19px)}
 
 /* ============ SYSTEM GRID ============ */
-.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px}
+/* 12 колонок: обычная плитка — 1/4 ряда, .third — 1/3, .wide — весь ряд.
+   Ряды всегда заполнены целиком, без пустых ячеек по краю */
+.info-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:10px;margin-top:14px}
 .info-item{
+  grid-column:span 3;min-width:0;
   background:var(--card-2);
   padding:14px;border-radius:14px;
   transition:transform .2s;
 }
+.info-item.third{grid-column:span 4}
+.info-item.wide{grid-column:1/-1}
 .info-item:hover{transform:translateY(-2px)}
 .info-label{
   font-size:9.5px;letter-spacing:.14em;font-weight:700;
@@ -376,6 +381,8 @@ input:checked+.slider:before{transform:translateX(19px)}
   .header{padding:20px 16px 16px}
   .card,.chart-card{padding:16px}
   .chart-row.double{grid-template-columns:1fr}
+  .info-item,.info-item.third{grid-column:span 6}
+  .info-item.third:last-child{grid-column:1/-1}
   .buttons{grid-template-columns:1fr 1fr}
   .fab{right:12px;width:42px;height:42px;font-size:17px}
   .theme-toggle{top:12px}
@@ -512,7 +519,7 @@ input:checked+.slider:before{transform:translateX(19px)}
 </div>
 <div class="info-item"><div class="info-label">CPU load</div><div class="info-value" id="cpuUsage">--</div></div>
 <div class="info-item"><div class="info-label">Chip temp</div><div class="info-value" id="chipTemp" style="transition:color .5s">--</div></div>
-<div class="info-item" style="grid-column:1/-1">
+<div class="info-item wide">
 <div class="info-label">Battery</div>
 <div class="battery-widget">
 <div class="battery-icon"><div class="battery-fill" id="batteryFill" style="width:0%"></div></div>
@@ -520,8 +527,8 @@ input:checked+.slider:before{transform:translateX(19px)}
 <div style="margin-left:auto;text-align:right"><div class="info-value" id="batteryVoltage">--</div><div class="battery-sub">voltage</div></div>
 </div>
 </div>
-<div class="info-item"><div class="info-label">SSID</div><div class="info-value" id="ssid" style="font-size:12px">--</div></div>
-<div class="info-item">
+<div class="info-item third"><div class="info-label">SSID</div><div class="info-value" id="ssid" style="font-size:12px">--</div></div>
+<div class="info-item third">
 <div class="info-label">WiFi signal</div>
 <div class="wifi-widget">
 <div class="wifi-bars">
@@ -533,7 +540,7 @@ input:checked+.slider:before{transform:translateX(19px)}
 <div><div class="info-value" id="rssi">--</div><div class="wifi-rssi-label" id="rssiLabel">--</div></div>
 </div>
 </div>
-<div class="info-item"><div class="info-label">IP address</div><div class="info-value" id="ipAddr" style="font-size:12px">--</div></div>
+<div class="info-item third"><div class="info-label">IP address</div><div class="info-value" id="ipAddr" style="font-size:12px">--</div></div>
 </div>
 <div class="buttons">
 <button class="btn" onclick="exportCSV()">Export CSV</button>
