@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PIO_ENV: esp32-c3-supermini
+
+jobs:
+  firmware:
+    name: Build firmware + static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio-${{ runner.os }}-
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build
+        shell: bash
+        run: |
+          pio run -e "$PIO_ENV" | tee build.log
+          {
+            echo "### Firmware size"
+            echo '```'
+            grep -E "^(RAM|Flash):" build.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Static analysis (cppcheck)
+        run: pio check -e "$PIO_ENV" --skip-packages --fail-on-defect medium --fail-on-defect high
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: firmware-esp32c3
+          path: |
+            .pio/build/${{ env.PIO_ENV }}/firmware.bin
+            .pio/build/${{ env.PIO_ENV }}/bootloader.bin
+            .pio/build/${{ env.PIO_ENV }}/partitions.bin
+          retention-days: 7
+
+  unit-tests:
+    name: Unit tests (native)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.platformio
+          key: pio-native-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio-native-${{ runner.os }}-
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Run tests
+        run: pio test -e native
+
+  ui-tests:
+    name: Web UI tests (mock device)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: test/requirements-ci.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r test/requirements-ci.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Run tests
+        working-directory: test
+        run: pytest ui
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: ui-test-report
+          path: test/test-reports/
+          retention-days: 7
+
+  release:
+    name: GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [firmware, unit-tests, ui-tests]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check tag matches FIRMWARE_VERSION
+        run: |
+          VERSION=$(grep -oP 'FIRMWARE_VERSION\s*=\s*"\K[^"]+' src/config.h)
+          if [ "${GITHUB_REF_NAME#v}" != "$VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match FIRMWARE_VERSION \"$VERSION\" in src/config.h"
+            exit 1
+          fi
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: firmware-esp32c3
+          path: dist
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mv dist/firmware.bin "dist/env-station-$GITHUB_REF_NAME.bin"
+          gh release create "$GITHUB_REF_NAME" dist/*.bin --generate-notes

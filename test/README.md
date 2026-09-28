@@ -381,22 +381,46 @@ pytest web/test_web_ui.py --screenshot=on --video=retain-on-failure
 
 ### Workflow файл
 
-`.github/workflows/ci.yml` содержит:
+`.github/workflows/ci.yml` запускается при push в `main`, на каждый pull request,
+на теги `v*` и вручную. Jobs:
 
-1. **Build Job** - компиляция прошивки
-2. **Static Analysis** - cppcheck, форматирование
-3. **Unit Tests** - native тесты (если есть)
-4. **Docs Check** - проверка документации
-5. **Security Scan** - Trivy scanner
-6. **Release** - создание релиза для тегов
+1. **Build firmware + static analysis** — `pio run` (размер RAM/Flash — в summary
+   запуска) и `pio check` (cppcheck, падает на дефектах medium/high)
+2. **Unit tests (native)** — `pio test -e native`: юнит-тесты
+   `WeatherCalculations` на хосте, без платы (`test/native/`)
+3. **Web UI tests (mock device)** — Playwright-тесты страницы против
+   mock-сервера (`test/ui/`), без платы
+4. **GitHub release** — только для тегов `v*`: проверяет, что тег совпадает с
+   `FIRMWARE_VERSION` в `src/config.h`, и прикладывает прошивку к релизу
+
+### Тесты без платы (локально)
+
+```bash
+# Юнит-тесты расчётов
+pio test -e native
+
+# UI-тесты против mock-сервера
+cd test
+pip install -r requirements-ci.txt
+python -m playwright install chromium
+pytest ui
+
+# Mock-сервер отдельно — править UI без перепрошивки
+python test/mock_server.py --port 8080   # → http://127.0.0.1:8080
+```
+
+Тесты в `api/` и `web/` рассчитаны на живую плату в сети и в CI не запускаются.
 
 ### Использование
 
 **Автоматический запуск:**
 
 ```bash
-# При push в main/develop
+# При push в main
 git push origin main
+
+# Релиз: тег должен совпадать с FIRMWARE_VERSION в src/config.h
+git tag v3.1 && git push origin v3.1
 
 # При создании PR
 gh pr create --base main --head feature-branch
@@ -426,9 +450,9 @@ gh run view <run-id> --log
 
 ### Artifacts
 
-После успешной сборки:
-- `firmware-esp32c3` - скомпилированная прошивка
-- Доступна 7 дней
+После каждого запуска (хранятся 7 дней):
+- `firmware-esp32c3` — `firmware.bin`, `bootloader.bin`, `partitions.bin`
+- `ui-test-report` — HTML-отчёт UI-тестов (в том числе при падении)
 
 **Скачать:**
 

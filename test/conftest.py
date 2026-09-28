@@ -32,13 +32,16 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "slow: Slow running tests"
     )
+    config.addinivalue_line(
+        "markers", "device_only: Needs the real ESP32 (WebSocket, sensor); skipped with --mock"
+    )
 
 # ═══════════════════════════════════════════════════════════════
 # Environment Setup
 # ═══════════════════════════════════════════════════════════════
 
 @pytest.fixture(scope="session", autouse=True)
-def setup_environment():
+def setup_environment(request):
     """Setup test environment"""
     # Загрузка .env если существует
     env_file = Path(__file__).parent / ".env"
@@ -46,6 +49,10 @@ def setup_environment():
         from dotenv import load_dotenv
         load_dotenv(env_file)
     
+    if request.config.getoption("--mock"):
+        print("\n✓ Running against mock device (test/mock_server.py)")
+        return
+
     # Проверка обязательных переменных
     esp32_ip = os.getenv("ESP32_IP")
     if not esp32_ip:
@@ -65,9 +72,19 @@ def esp32_ip():
     return os.getenv("ESP32_IP", "192.168.1.100")
 
 @pytest.fixture(scope="session")
-def base_url(esp32_ip):
-    """Base URL for ESP32"""
-    return f"http://{esp32_ip}"
+def mock_mode(request):
+    """True, если тесты идут против mock-сервера (--mock), а не платы"""
+    return request.config.getoption("--mock")
+
+@pytest.fixture(scope="session")
+def base_url(request, mock_mode, setup_environment):
+    """Base URL for ESP32 (или mock-сервера с --mock)"""
+    if mock_mode:
+        from mock_server import MockServer
+        server = MockServer().start_background()
+        request.addfinalizer(server.stop)
+        return server.url
+    return f"http://{os.getenv('ESP32_IP', '192.168.1.100')}"
 
 @pytest.fixture(scope="session")
 def test_timeout():
@@ -87,15 +104,14 @@ def pytest_runtest_makereport(item, call):
     """Add extra information to test reports"""
     outcome = yield
     report = outcome.get_result()
-    
-    # Добавляем ESP32 IP к отчету
-    if report.when == "call":
-        esp32_ip = os.getenv("ESP32_IP", "192.168.1.100")
-        report.extra = getattr(report, "extra", [])
-        report.extra.append(pytest_html.extras.text(
-            f"ESP32 IP: {esp32_ip}", 
-            name="Environment"
-        ))
+
+    # Добавляем ESP32 IP к отчету (только если подключён pytest-html)
+    pytest_html = item.config.pluginmanager.getplugin("html")
+    if report.when == "call" and pytest_html:
+        target = "mock device" if item.config.getoption("--mock") \
+            else f"ESP32 IP: {os.getenv('ESP32_IP', '192.168.1.100')}"
+        report.extras = getattr(report, "extras", [])
+        report.extras.append(pytest_html.extras.text(target, name="Environment"))
 
 # ═══════════════════════════════════════════════════════════════
 # Cleanup
@@ -114,6 +130,13 @@ def cleanup_after_test():
 
 def pytest_collection_modifyitems(config, items):
     """Modify test collection"""
+    # С --mock пропускаем то, что mock не умеет (WebSocket и т.п.)
+    if config.getoption("--mock"):
+        skip_device = pytest.mark.skip(reason="Needs the real ESP32 (not available with --mock)")
+        for item in items:
+            if "device_only" in item.keywords:
+                item.add_marker(skip_device)
+
     # Пропускаем hardware тесты если флаг не установлен
     if not config.getoption("--hardware", default=False):
         skip_hardware = pytest.mark.skip(reason="Requires --hardware flag")
@@ -128,6 +151,12 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help="Run hardware-dependent tests"
+    )
+    parser.addoption(
+        "--mock",
+        action="store_true",
+        default=False,
+        help="Run api/ and web/ tests against test/mock_server.py instead of the ESP32"
     )
     parser.addoption(
         "--slow",

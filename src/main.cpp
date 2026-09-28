@@ -158,7 +158,7 @@ void printSystemInfo() {
     }
     
     Serial.println("=== System Information ===");
-    Serial.printf("Firmware:       v%s\n", FIRMWARE_VERSION);
+    Serial.printf("Firmware:       v%s (built %s)\n", FIRMWARE_VERSION, FIRMWARE_BUILD_TIME);
     Serial.printf("Chip Model:     %s\n", ESP.getChipModel());
     Serial.printf("Chip Revision:  %d\n", ESP.getChipRevision());
     Serial.printf("CPU Frequency:  %d MHz\n", ESP.getCpuFreqMHz());
