@@ -180,7 +180,7 @@ class TestStatsEndpoint:
         data = response.json()
         
         required_fields = [
-            "uptime", "freeHeap", "heapUsage", "cpuUsage",
+            "uptime", "firmware", "freeHeap", "heapUsage", "cpuUsage",
             "ssid", "rssi", "ip", "requests", "errors", "battery"
         ]
         

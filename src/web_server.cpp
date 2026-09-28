@@ -158,6 +158,7 @@ void WeatherWebServer::handleStats() {
 
     json = "{";
     json += "\"uptime\":\"" + getUptimeString() + "\"";
+    json += ",\"firmware\":\"" + String(FIRMWARE_VERSION) + "\"";
     json += ",\"freeHeap\":\"" + formatBytes(freeHeap) + "\"";
     json += ",\"freeHeapRaw\":" + String(freeHeap);
     json += ",\"totalHeapRaw\":" + String(totalHeap);

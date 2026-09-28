@@ -398,7 +398,7 @@ void DisplayManager::showSplash(const char* version) {
 
     _display.setTextSize(1);
     _display.setCursor(2, 42);
-    _display.print("Station ");
+    _display.print("Station v");
     _display.print(version);
 
     _display.drawFastHLine(0, 54, DISPLAY_WIDTH, SSD1306_WHITE);
