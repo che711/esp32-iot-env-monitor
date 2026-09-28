@@ -105,7 +105,7 @@ body.dark .status.online{color:#69f0ae;background:rgba(46,184,114,.16)}
 body.dark .status.offline{color:#ff8a90;background:rgba(229,72,77,.16)}
 .status-dot{width:8px;height:8px;border-radius:50%;background:currentColor;animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
-#lastUpdateBadge{font-variant-numeric:tabular-nums}
+#lastUpdateBadge,#fwBadge{font-variant-numeric:tabular-nums}
 
 /* ============ FLOATING CONTROLS ============ */
 .fab{
@@ -433,6 +433,7 @@ input:checked+.slider:before{transform:translateX(19px)}
 <div class="status-container">
 <div id="statusBadge" class="status online"><div class="status-dot"></div><span>Connected</span></div>
 <div id="lastUpdateBadge" class="status"><span id="lastUpdate">Loading...</span></div>
+<div id="fwBadge" class="status" title="Firmware version" style="display:none"><span id="fwVersion"></span></div>
 </div>
 </div>
 
@@ -954,6 +955,10 @@ function updateData(){
 function updateStats(){
   fetch('/stats').then(function(r){return r.json();}).then(function(d){
     document.getElementById('uptime').textContent=d.uptime;
+    if(d.firmware){
+      document.getElementById('fwVersion').textContent='v'+d.firmware;
+      document.getElementById('fwBadge').style.display='';
+    }
     var usedPct=d.heapUsagePct||0;
     document.getElementById('freeHeap').textContent=d.freeHeap;
     document.getElementById('ramUsedPct').textContent=usedPct.toFixed(1)+'% used';

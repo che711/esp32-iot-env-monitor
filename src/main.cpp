@@ -158,6 +158,7 @@ void printSystemInfo() {
     }
     
     Serial.println("=== System Information ===");
+    Serial.printf("Firmware:       v%s\n", FIRMWARE_VERSION);
     Serial.printf("Chip Model:     %s\n", ESP.getChipModel());
     Serial.printf("Chip Revision:  %d\n", ESP.getChipRevision());
     Serial.printf("CPU Frequency:  %d MHz\n", ESP.getCpuFreqMHz());
@@ -308,7 +309,7 @@ void setup() {
     // можно показать на экране, а не только в Serial.
     Serial.println("=== Initializing Display ===");
     displayManager.begin();
-    displayManager.showSplash("v3.1");
+    displayManager.showSplash(FIRMWARE_VERSION);
     button.begin();
     Serial.println();
 
