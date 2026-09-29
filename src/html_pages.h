@@ -8,6 +8,8 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ENV Station</title>
+<!-- Пустая иконка: браузер не дёргает /favicon.ico (у платы там 404) -->
+<link rel="icon" href="data:,">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <style>
 /* ============ TOKENS — light / purple gradient (default) ============ */
@@ -123,7 +125,7 @@ body.dark .status.offline{color:#ff8a90;background:rgba(229,72,77,.16)}
 .chart-row.double{grid-template-columns:1fr 1fr}
 .card,.chart-card{
   background:var(--card);backdrop-filter:blur(10px);border-radius:20px;
-  padding:22px;box-shadow:var(--shadow);
+  padding:22px;box-shadow:var(--shadow);min-width:0;
   transition:transform .25s ease,box-shadow .25s ease,background .3s;
 }
 .card:hover,.chart-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-hover)}
@@ -217,12 +219,17 @@ input:checked+.slider{background:var(--acc-temp)}
 input:checked+.slider:before{transform:translateX(19px)}
 
 /* ============ SYSTEM GRID ============ */
-.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px}
+/* 12 колонок: обычная плитка — 1/4 ряда, .third — 1/3, .wide — весь ряд.
+   Ряды всегда заполнены целиком, без пустых ячеек по краю */
+.info-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:10px;margin-top:14px}
 .info-item{
+  grid-column:span 3;min-width:0;
   background:var(--card-2);
   padding:14px;border-radius:14px;
   transition:transform .2s;
 }
+.info-item.third{grid-column:span 4}
+.info-item.wide{grid-column:1/-1}
 .info-item:hover{transform:translateY(-2px)}
 .info-label{
   font-size:9.5px;letter-spacing:.14em;font-weight:700;
@@ -309,6 +316,7 @@ input:checked+.slider:before{transform:translateX(19px)}
 
 /* ============ CHART ============ */
 .chart-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.chart-head .time-range{margin-left:auto}
 .chart-toggles{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
 .chart-toggle-btn{
   display:flex;align-items:center;gap:7px;padding:6px 14px;
@@ -368,6 +376,29 @@ input:checked+.slider:before{transform:translateX(19px)}
 #particleCanvas{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0;transition:opacity .6s ease}
 #particleCanvas.visible{opacity:1}
 
+/* ============ COLLAPSIBLE CARDS ============ */
+/* Разметку (.card-body + кнопка) достраивает initCollapsible() по data-collapse.
+   Тело скрывается через display:none, а не анимацией высоты: у графика
+   maintainAspectRatio:false, и сжимающийся контейнер сломал бы его размер */
+.collapsible-head{cursor:pointer;user-select:none;transition:margin .25s}
+.collapse-btn{
+  margin:-5px 0 -5px auto;flex-shrink:0;width:26px;height:26px;padding:0;
+  border:none;border-radius:50%;background:var(--chip);color:var(--muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transform:rotate(180deg);transition:transform .25s,color .2s;
+}
+.collapse-btn svg{width:14px;height:14px}
+.collapse-btn:hover{color:var(--text)}
+.chart-head .collapse-btn{margin-left:0}
+.collapsed .collapse-btn{transform:none}
+.collapsed>.collapsible-head{margin-bottom:0}
+.collapsed>.card-body{display:none}
+/* Свёрнутая карточка не растягивается на высоту соседа по ряду */
+.collapsed{align-self:start}
+.card-body{animation:cardBodyIn .3s ease}
+@keyframes cardBodyIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+body:not(.dark) .sensor-card .collapse-btn{background:rgba(255,255,255,.22);color:#fff}
+
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
@@ -376,6 +407,8 @@ input:checked+.slider:before{transform:translateX(19px)}
   .header{padding:20px 16px 16px}
   .card,.chart-card{padding:16px}
   .chart-row.double{grid-template-columns:1fr}
+  .info-item,.info-item.third{grid-column:span 6}
+  .info-item.third:last-child{grid-column:1/-1}
   .buttons{grid-template-columns:1fr 1fr}
   .fab{right:12px;width:42px;height:42px;font-size:17px}
   .theme-toggle{top:12px}
@@ -433,13 +466,13 @@ input:checked+.slider:before{transform:translateX(19px)}
 <div class="status-container">
 <div id="statusBadge" class="status online"><div class="status-dot"></div><span>Connected</span></div>
 <div id="lastUpdateBadge" class="status"><span id="lastUpdate">Loading...</span></div>
-<div id="fwBadge" class="status" title="Firmware version" style="display:none"><span id="fwVersion"></span></div>
+<div id="fwBadge" class="status" title="Firmware version and build time" style="display:none"><span id="fwVersion"></span></div>
 </div>
 </div>
 
 <div id="sensorRows">
 <div class="chart-row double">
-<div class="card sensor-card temp-card" style="--acc:var(--acc-temp)">
+<div class="card sensor-card temp-card" data-collapse="temp" style="--acc:var(--acc-temp)">
 <div class="sensor-header">
 <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
 <div class="sensor-label">Temperature</div>
@@ -458,7 +491,7 @@ input:checked+.slider:before{transform:translateX(19px)}
 <div id="tempComfort" class="comfort-indicator"></div>
 <div class="sparkline-wrap"><div class="sparkline-label">Trend</div><canvas class="sparkline" id="spkTemp"></canvas></div>
 </div>
-<div class="card sensor-card humidity-card" style="--acc:var(--acc-humid)">
+<div class="card sensor-card humidity-card" data-collapse="humidity" style="--acc:var(--acc-humid)">
 <div class="sensor-header">
 <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
 <div class="sensor-label">Humidity</div>
@@ -474,7 +507,7 @@ input:checked+.slider:before{transform:translateX(19px)}
 </div>
 </div>
 <div class="chart-row double">
-<div class="card sensor-card dewpoint-card" style="--acc:var(--acc-dew)">
+<div class="card sensor-card dewpoint-card" data-collapse="dewpoint" style="--acc:var(--acc-dew)">
 <div class="sensor-header">
 <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/><line x1="8" y1="16" x2="16" y2="16"/></svg>
 <div class="sensor-label">Dew point</div>
@@ -483,7 +516,7 @@ input:checked+.slider:before{transform:translateX(19px)}
 <div class="sensor-description">Temperature at which water vapor condenses</div>
 <div class="sparkline-wrap"><div class="sparkline-label">Trend</div><canvas class="sparkline" id="spkDew"></canvas></div>
 </div>
-<div class="card sensor-card heatindex-card" style="--acc:var(--acc-heat)">
+<div class="card sensor-card heatindex-card" data-collapse="heatindex" style="--acc:var(--acc-heat)">
 <div class="sensor-header">
 <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
 <div class="sensor-label">Heat index</div>
@@ -496,10 +529,14 @@ input:checked+.slider:before{transform:translateX(19px)}
 </div>
 
 <div id="systemRow" class="chart-row">
-<div class="card">
+<div class="card" data-collapse="system">
 <h3>System &amp; control</h3>
 <div class="info-grid">
-<div class="info-item"><div class="info-label">Uptime</div><div class="info-value" id="uptime">--</div></div>
+<div class="info-item">
+<div class="info-label">Uptime</div>
+<div class="info-value" id="uptime">--</div>
+<div class="battery-sub" title="32-bit millis() wraps every ~49.7 days; uptime restarts from 0 without a reboot">millis() overflows: <span id="millisOverflows">--</span></div>
+</div>
 <div class="info-item">
 <div class="info-label">RAM</div>
 <div class="info-value" id="freeHeap">--</div>
@@ -508,7 +545,7 @@ input:checked+.slider:before{transform:translateX(19px)}
 </div>
 <div class="info-item"><div class="info-label">CPU load</div><div class="info-value" id="cpuUsage">--</div></div>
 <div class="info-item"><div class="info-label">Chip temp</div><div class="info-value" id="chipTemp" style="transition:color .5s">--</div></div>
-<div class="info-item" style="grid-column:1/-1">
+<div class="info-item wide">
 <div class="info-label">Battery</div>
 <div class="battery-widget">
 <div class="battery-icon"><div class="battery-fill" id="batteryFill" style="width:0%"></div></div>
@@ -516,8 +553,8 @@ input:checked+.slider:before{transform:translateX(19px)}
 <div style="margin-left:auto;text-align:right"><div class="info-value" id="batteryVoltage">--</div><div class="battery-sub">voltage</div></div>
 </div>
 </div>
-<div class="info-item"><div class="info-label">SSID</div><div class="info-value" id="ssid" style="font-size:12px">--</div></div>
-<div class="info-item">
+<div class="info-item third"><div class="info-label">SSID</div><div class="info-value" id="ssid" style="font-size:12px">--</div></div>
+<div class="info-item third">
 <div class="info-label">WiFi signal</div>
 <div class="wifi-widget">
 <div class="wifi-bars">
@@ -529,7 +566,7 @@ input:checked+.slider:before{transform:translateX(19px)}
 <div><div class="info-value" id="rssi">--</div><div class="wifi-rssi-label" id="rssiLabel">--</div></div>
 </div>
 </div>
-<div class="info-item"><div class="info-label">IP address</div><div class="info-value" id="ipAddr" style="font-size:12px">--</div></div>
+<div class="info-item third"><div class="info-label">IP address</div><div class="info-value" id="ipAddr" style="font-size:12px">--</div></div>
 </div>
 <div class="buttons">
 <button class="btn" onclick="exportCSV()">Export CSV</button>
@@ -541,7 +578,7 @@ input:checked+.slider:before{transform:translateX(19px)}
 </div>
 
 <div id="serialRow" class="chart-row">
-<div class="card">
+<div class="card" data-collapse="serial">
 <h3>Serial monitor <span class="ws-status" id="wsStatus"></span><span id="wsStatusText" style="font-size:11px;font-weight:500;color:var(--muted)">Connecting...</span></h3>
 <div class="log-filters">
 <button class="log-filter-btn active" style="--c:#FF9088" onclick="toggleLogFilter('error',this)">ERROR</button>
@@ -559,7 +596,7 @@ input:checked+.slider:before{transform:translateX(19px)}
 </div>
 
 <div id="chartRow" class="chart-row">
-<div class="chart-card">
+<div class="chart-card" data-collapse="history">
 <div class="chart-head">
 <h3>History</h3>
 <div class="time-range">
@@ -955,8 +992,9 @@ function updateData(){
 function updateStats(){
   fetch('/stats').then(function(r){return r.json();}).then(function(d){
     document.getElementById('uptime').textContent=d.uptime;
+    if(d.millisOverflows!=null)document.getElementById('millisOverflows').textContent=d.millisOverflows;
     if(d.firmware){
-      document.getElementById('fwVersion').textContent='v'+d.firmware;
+      document.getElementById('fwVersion').textContent='v'+d.firmware+(d.buildTime?' · '+d.buildTime:'');
       document.getElementById('fwBadge').style.display='';
     }
     var usedPct=d.heapUsagePct||0;
@@ -1127,10 +1165,48 @@ function setWeatherFromData(tempC,humid){
   if(mode!==pMode)updateParticleMode(mode);
 }
 
+/* ===== COLLAPSIBLE CARDS ===== */
+var CHEVRON_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+function initCollapsible(){
+  var saved=JSON.parse(localStorage.getItem(BLOCK_KEY)||'{}').collapsed||{};
+  document.querySelectorAll('[data-collapse]').forEach(function(card){
+    var head=card.querySelector('.chart-head,.sensor-header,h3');
+    var body=document.createElement('div');
+    body.className='card-body';
+    while(head.nextSibling)body.appendChild(head.nextSibling);
+    card.appendChild(body);
+    var btn=document.createElement('button');
+    btn.type='button';
+    btn.className='collapse-btn';
+    btn.innerHTML=CHEVRON_SVG;
+    head.appendChild(btn);
+    head.classList.add('collapsible-head');
+    head.addEventListener('click',function(e){
+      /* Остальные кнопки в шапке (диапазон графика) работают как раньше */
+      var b=e.target.closest('button');
+      if(b&&b!==btn)return;
+      setCollapsed(card,!card.classList.contains('collapsed'),true);
+    });
+    setCollapsed(card,saved[card.dataset.collapse]===true,false);
+  });
+}
+function setCollapsed(card,collapsed,save){
+  card.classList.toggle('collapsed',collapsed);
+  var btn=card.querySelector('.collapse-btn');
+  btn.setAttribute('aria-expanded',String(!collapsed));
+  btn.title=collapsed?'Expand':'Collapse';
+  if(!save)return;
+  var prefs=JSON.parse(localStorage.getItem(BLOCK_KEY)||'{}');
+  prefs.collapsed=prefs.collapsed||{};
+  prefs.collapsed[card.dataset.collapse]=collapsed;
+  localStorage.setItem(BLOCK_KEY,JSON.stringify(prefs));
+}
+
 /* ===== INIT ===== */
 document.addEventListener('DOMContentLoaded',function(){
   applyTheme();
   applyBlockPrefs();
+  initCollapsible();
   initCharts();
   initSparklines();
   initParticles();

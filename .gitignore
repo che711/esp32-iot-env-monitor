@@ -18,3 +18,8 @@ secrets.h
 .env
 .envmonitor/
 **test/__pycache__/
+
+# pytest reports / coverage
+test/test-reports/
+.coverage
+**/__pycache__/

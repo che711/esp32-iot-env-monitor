@@ -2,10 +2,16 @@
 
 # ═══════════════════════════════════════════════════════════════
 # ESP32 Weather Station API Tests
-# Тестирование REST API endpoints с помощью curl
+# Быстрые smoke-тесты REST API с помощью curl
+#
+#   ./test_api.sh --host 192.168.1.65        # плата
+#   ./test_api.sh --host 127.0.0.1:8080      # test/mock_server.py
+#
+# ⚠️ Вызывает /reset — min/max на плате будут сброшены.
 # ═══════════════════════════════════════════════════════════════
 
-set -e
+# Без set -e: отдельный упавший тест не должен обрывать весь прогон
+set -uo pipefail
 
 # Цвета для вывода
 RED='\033[0;31m'
@@ -15,8 +21,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Конфигурация
-ESP32_IP="${ESP32_IP:-192.168.1.100}"
-BASE_URL="http://${ESP32_IP}"
+ESP32_IP="${ESP32_IP:-192.168.1.100}"   # можно с портом: 127.0.0.1:8080
 TIMEOUT=5
 VERBOSE=false
 
@@ -24,6 +29,12 @@ VERBOSE=false
 TESTS_PASSED=0
 TESTS_FAILED=0
 TESTS_TOTAL=0
+
+# Результат последнего http_get (глобальные — без subshell, чтобы
+# счётчики и сообщения не терялись внутри $(...))
+HTTP_CODE=""
+HTTP_BODY=""
+HTTP_HEADERS=""
 
 # ═══════════════════════════════════════════════════════════════
 # Вспомогательные функции
@@ -35,12 +46,12 @@ log_info() {
 
 log_success() {
     echo -e "${GREEN}[✓]${NC} $1"
-    ((TESTS_PASSED++))
+    TESTS_PASSED=$((TESTS_PASSED + 1))
 }
 
 log_error() {
     echo -e "${RED}[✗]${NC} $1"
-    ((TESTS_FAILED++))
+    TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 
 log_warning() {
@@ -48,57 +59,93 @@ log_warning() {
 }
 
 run_test() {
-    local test_name=$1
-    ((TESTS_TOTAL++))
-    log_info "Test #${TESTS_TOTAL}: ${test_name}"
+    TESTS_TOTAL=$((TESTS_TOTAL + 1))
+    log_info "Test #${TESTS_TOTAL}: $1"
 }
 
-# HTTP запрос с проверкой
-http_request() {
+# GET/POST запрос: заполняет HTTP_CODE, HTTP_BODY, HTTP_HEADERS
+http_get() {
     local url=$1
-    local expected_code=${2:-200}
-    local method=${3:-GET}
-    
-    local response=$(curl -s -w "\n%{http_code}" -X ${method} "${url}" --max-time ${TIMEOUT} 2>&1)
-    local http_code=$(echo "$response" | tail -n 1)
-    local body=$(echo "$response" | sed '$d')
-    
-    if [ "$http_code" != "$expected_code" ]; then
-        log_error "Expected HTTP $expected_code, got $http_code"
-        [ "$VERBOSE" = true ] && echo "Response: $body"
-        return 1
-    fi
-    
-    echo "$body"
+    local method=${2:-GET}
+    local headers_file
+    headers_file=$(mktemp)
+
+    HTTP_BODY=$(curl -s -X "$method" -D "$headers_file" -w "\n%{http_code}" \
+                     --max-time "$TIMEOUT" "$url" 2>/dev/null)
+    HTTP_CODE=$(tail -n 1 <<< "$HTTP_BODY")
+    HTTP_BODY=$(sed '$d' <<< "$HTTP_BODY")
+    HTTP_HEADERS=$(cat "$headers_file")
+    rm -f "$headers_file"
+
+    [ "$VERBOSE" = true ] && echo "  $method $url → $HTTP_CODE"
     return 0
 }
 
-# Проверка JSON поля
-check_json_field() {
-    local json=$1
-    local field=$2
-    local expected_type=${3:-any}
-    
-    # Используем Python для парсинга JSON (если доступен)
-    if command -v python3 &> /dev/null; then
-        local value=$(echo "$json" | python3 -c "import json,sys; data=json.load(sys.stdin); print(data.get('$field', 'MISSING'))")
-        
-        if [ "$value" = "MISSING" ]; then
-            log_error "Field '$field' not found in JSON"
-            return 1
-        fi
-        
-        log_success "Field '$field' exists (value: $value)"
+# Проверка кода ответа последнего запроса
+expect_code() {
+    local expected=$1
+    local what=$2
+    if [ "$HTTP_CODE" = "$expected" ]; then
+        log_success "$what → HTTP $HTTP_CODE"
         return 0
+    fi
+    log_error "$what: expected HTTP $expected, got ${HTTP_CODE:-no response}"
+    [ "$VERBOSE" = true ] && echo "Response: $HTTP_BODY"
+    return 1
+}
+
+# Значение из JSON последнего ответа по пути вида "battery.voltage"
+json_get() {
+    python3 -c '
+import json, sys
+try:
+    value = json.loads(sys.argv[1])
+    for key in sys.argv[2].split("."):
+        value = value[key]
+except (KeyError, TypeError, ValueError):
+    print("__MISSING__")
+else:
+    print(json.dumps(value) if isinstance(value, (list, dict)) else value)
+' "$HTTP_BODY" "$1"
+}
+
+# Проверка наличия полей в JSON последнего ответа
+check_json_fields() {
+    local missing=()
+    local field
+    for field in "$@"; do
+        [ "$(json_get "$field")" = "__MISSING__" ] && missing+=("$field")
+    done
+    if [ ${#missing[@]} -eq 0 ]; then
+        log_success "All fields present: $*"
     else
-        # Простая проверка без парсера
-        if echo "$json" | grep -q "\"$field\""; then
-            log_success "Field '$field' found in response"
-            return 0
-        else
-            log_error "Field '$field' not found in JSON"
-            return 1
-        fi
+        log_error "Missing fields: ${missing[*]}"
+    fi
+}
+
+# Проверка значения регулярным выражением
+check_json_match() {
+    local field=$1
+    local pattern=$2
+    local value
+    value=$(json_get "$field")
+    if [[ "$value" =~ $pattern ]]; then
+        log_success "$field = $value"
+    else
+        log_error "$field has unexpected value: '$value' (expected /$pattern/)"
+    fi
+}
+
+# Проверка числового диапазона
+check_json_range() {
+    local field=$1 min=$2 max=$3
+    local value
+    value=$(json_get "$field")
+    if python3 -c 'import sys; v, lo, hi = map(float, sys.argv[1:]); sys.exit(0 if lo <= v <= hi else 1)' \
+            "$value" "$min" "$max" 2>/dev/null; then
+        log_success "$field = $value (in $min..$max)"
+    else
+        log_error "$field out of range: '$value' (expected $min..$max)"
     fi
 }
 
@@ -108,203 +155,120 @@ check_json_field() {
 
 test_connectivity() {
     run_test "ESP32 connectivity check"
-    
-    if ping -c 1 -W 2 ${ESP32_IP} &> /dev/null; then
-        log_success "ESP32 is reachable at ${ESP32_IP}"
+    http_get "${BASE_URL}/"
+    if [ "$HTTP_CODE" = "200" ]; then
+        log_success "ESP32 is reachable at ${BASE_URL}"
         return 0
-    else
-        log_error "ESP32 is not reachable at ${ESP32_IP}"
-        return 1
     fi
+    log_error "ESP32 is not reachable at ${BASE_URL}"
+    return 1
 }
 
 test_root_endpoint() {
     run_test "GET / - Root endpoint (HTML page)"
-    
-    local response=$(http_request "${BASE_URL}/")
-    
-    if [ $? -eq 0 ]; then
-        # Проверяем что это HTML
-        if echo "$response" | grep -q "<!DOCTYPE html>"; then
-            log_success "Root endpoint returns HTML page"
-            
-            # Проверяем наличие ключевых элементов
-            echo "$response" | grep -q "Environmental Statistics" && log_success "HTML contains title"
-            echo "$response" | grep -q "temperature" && log_success "HTML contains temperature element"
-            echo "$response" | grep -q "humidity" && log_success "HTML contains humidity element"
-            
-            return 0
-        else
-            log_error "Root endpoint doesn't return valid HTML"
-            return 1
-        fi
-    fi
-    
-    return 1
+    http_get "${BASE_URL}/"
+    expect_code 200 "GET /" || return
+
+    grep -q "<!DOCTYPE html>" <<< "$HTTP_BODY" \
+        && log_success "Returns HTML page" || log_error "Response is not an HTML page"
+    grep -q "<title>ENV Station</title>" <<< "$HTTP_BODY" \
+        && log_success "HTML contains title" || log_error "Title 'ENV Station' not found"
+    grep -q 'id="temperature"' <<< "$HTTP_BODY" \
+        && log_success "HTML contains temperature element" || log_error "No #temperature element"
+    grep -q 'id="humidity"' <<< "$HTTP_BODY" \
+        && log_success "HTML contains humidity element" || log_error "No #humidity element"
 }
 
 test_data_endpoint() {
     run_test "GET /data - Sensor data endpoint"
-    
-    local response=$(http_request "${BASE_URL}/data")
-    
-    if [ $? -eq 0 ]; then
-        log_success "Data endpoint is accessible"
-        
-        # Проверка обязательных полей
-        check_json_field "$response" "temperature"
-        check_json_field "$response" "humidity"
-        check_json_field "$response" "minTemp"
-        check_json_field "$response" "maxTemp"
-        check_json_field "$response" "minHumid"
-        check_json_field "$response" "maxHumid"
-        check_json_field "$response" "avgTemp"
-        check_json_field "$response" "avgHumid"
-        check_json_field "$response" "dewPoint"
-        check_json_field "$response" "heatIndex"
-        check_json_field "$response" "timestamp"
-        
-        # Проверка диапазонов значений
-        if command -v python3 &> /dev/null; then
-            local temp=$(echo "$response" | python3 -c "import json,sys; print(json.load(sys.stdin)['temperature'])")
-            
-            if (( $(echo "$temp > -40 && $temp < 85" | bc -l) )); then
-                log_success "Temperature is in valid range: ${temp}°C"
-            else
-                log_warning "Temperature out of range: ${temp}°C"
-            fi
-        fi
-        
-        return 0
-    fi
-    
-    return 1
+    http_get "${BASE_URL}/data"
+    expect_code 200 "GET /data" || return
+
+    check_json_fields temperature humidity minTemp maxTemp minHumid maxHumid \
+                      avgTemp avgHumid dewPoint heatIndex timestamp
+    check_json_range temperature -40 85
+    check_json_range humidity 0 100
 }
 
 test_stats_endpoint() {
     run_test "GET /stats - System statistics endpoint"
-    
-    local response=$(http_request "${BASE_URL}/stats")
-    
-    if [ $? -eq 0 ]; then
-        log_success "Stats endpoint is accessible"
-        
-        # Проверка полей
-        check_json_field "$response" "uptime"
-        check_json_field "$response" "freeHeap"
-        check_json_field "$response" "heapUsage"
-        check_json_field "$response" "cpuUsage"
-        check_json_field "$response" "ssid"
-        check_json_field "$response" "rssi"
-        check_json_field "$response" "ip"
-        check_json_field "$response" "requests"
-        check_json_field "$response" "errors"
-        check_json_field "$response" "battery"
-        
-        # Проверка вложенных полей батареи
-        if command -v python3 &> /dev/null; then
-            local battery=$(echo "$response" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('battery', {})))")
-            
-            echo "$battery" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('voltage', 'N/A'))" | grep -q "N/A" && log_error "Battery voltage missing" || log_success "Battery voltage present"
-            echo "$battery" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('percent', 'N/A'))" | grep -q "N/A" && log_error "Battery percent missing" || log_success "Battery percent present"
-        fi
-        
-        return 0
-    fi
-    
-    return 1
+    http_get "${BASE_URL}/stats"
+    expect_code 200 "GET /stats" || return
+
+    check_json_fields uptime firmware buildTime millisOverflows freeHeap heapUsage \
+                      cpuUsage ssid rssi ip requests errors \
+                      battery.voltage battery.percent battery.status battery.source
+    check_json_match firmware '^[0-9]+\.[0-9]+(\.[0-9]+)?$'
+    check_json_match buildTime '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}$'
+    check_json_match millisOverflows '^[0-9]+$'
+    check_json_range battery.percent 0 100
+    check_json_range rssi -100 0
 }
 
 test_history_endpoint() {
     run_test "GET /history - Historical data endpoint"
-    
-    local response=$(http_request "${BASE_URL}/history")
-    
-    if [ $? -eq 0 ]; then
-        log_success "History endpoint is accessible"
-        
-        # Проверка структуры
-        check_json_field "$response" "labels"
-        check_json_field "$response" "temp"
-        check_json_field "$response" "humid"
-        
-        # Проверка что массивы не пустые
-        if command -v python3 &> /dev/null; then
-            local label_count=$(echo "$response" | python3 -c "import json,sys; print(len(json.load(sys.stdin)['labels']))")
-            
-            if [ "$label_count" -gt 0 ]; then
-                log_success "History contains $label_count data points"
-            else
-                log_warning "History is empty"
-            fi
-        fi
-        
-        return 0
+    http_get "${BASE_URL}/history"
+    expect_code 200 "GET /history" || return
+
+    check_json_fields labels temp humid dew heat
+
+    local lengths
+    lengths=$(python3 -c '
+import json, sys
+d = json.loads(sys.argv[1])
+print(" ".join(str(len(d[k])) for k in ("labels", "temp", "humid", "dew", "heat")))
+' "$HTTP_BODY")
+    local first=${lengths%% *}
+    if [ "$(tr ' ' '\n' <<< "$lengths" | sort -u | wc -l)" = "1" ]; then
+        log_success "All history series have $first points"
+    else
+        log_error "History series have different lengths: $lengths"
     fi
-    
-    return 1
+    [ "$first" -eq 0 ] && log_warning "History is empty (device just booted?)"
 }
 
 test_reset_endpoint() {
     run_test "GET /reset - Reset min/max values"
-    
-    local response=$(http_request "${BASE_URL}/reset")
-    
-    if [ $? -eq 0 ]; then
-        # Проверяем что вернулся успешный ответ
-        if echo "$response" | grep -q "success.*true"; then
-            log_success "Reset endpoint executed successfully"
-            return 0
-        else
-            log_error "Reset endpoint returned unexpected response"
-            return 1
-        fi
+    http_get "${BASE_URL}/reset"
+    expect_code 200 "GET /reset" || return
+
+    if [ "$(json_get success)" = "True" ]; then
+        log_success "Reset returned success"
+    else
+        log_error "Reset returned unexpected response: $HTTP_BODY"
     fi
-    
-    return 1
 }
 
 test_404_handling() {
     run_test "GET /nonexistent - 404 handling"
-    
-    local response=$(curl -s -w "\n%{http_code}" "${BASE_URL}/nonexistent" --max-time ${TIMEOUT} 2>&1)
-    local http_code=$(echo "$response" | tail -n 1)
-    
-    if [ "$http_code" = "404" ]; then
-        log_success "404 error handled correctly"
-        return 0
-    else
-        log_error "Expected 404, got $http_code"
-        return 1
-    fi
+    http_get "${BASE_URL}/nonexistent"
+    expect_code 404 "GET /nonexistent"
+
+    run_test "POST /data - GET-only route"
+    http_get "${BASE_URL}/data" POST
+    expect_code 404 "POST /data"
 }
 
 test_cors_headers() {
     run_test "CORS headers check"
-    
-    local headers=$(curl -s -I "${BASE_URL}/data" --max-time ${TIMEOUT})
-    
-    if echo "$headers" | grep -qi "Access-Control-Allow-Origin"; then
+    http_get "${BASE_URL}/data"
+    if grep -qi "^Access-Control-Allow-Origin: \*" <<< "$HTTP_HEADERS"; then
         log_success "CORS headers present"
-        return 0
     else
-        log_warning "CORS headers not found"
-        return 0  # Не критично
+        log_error "Access-Control-Allow-Origin: * not found"
     fi
 }
 
 test_response_time() {
     run_test "Response time check"
-    
-    local start_time=$(date +%s%N)
-    curl -s "${BASE_URL}/data" --max-time ${TIMEOUT} &> /dev/null
-    local end_time=$(date +%s%N)
-    
-    local elapsed_ms=$(( (end_time - start_time) / 1000000 ))
-    
-    if [ $elapsed_ms -lt 1000 ]; then
+
+    local seconds elapsed_ms
+    seconds=$(curl -s -o /dev/null -w "%{time_total}" --max-time "$TIMEOUT" "${BASE_URL}/data")
+    elapsed_ms=$(python3 -c 'import sys; print(int(float(sys.argv[1]) * 1000))' "$seconds")
+
+    if [ "$elapsed_ms" -lt 1000 ]; then
         log_success "Response time: ${elapsed_ms}ms (good)"
-    elif [ $elapsed_ms -lt 3000 ]; then
+    elif [ "$elapsed_ms" -lt 3000 ]; then
         log_warning "Response time: ${elapsed_ms}ms (acceptable)"
     else
         log_error "Response time: ${elapsed_ms}ms (slow)"
@@ -313,38 +277,34 @@ test_response_time() {
 
 test_concurrent_requests() {
     run_test "Concurrent requests handling"
-    
     log_info "Sending 5 concurrent requests..."
-    
-    for i in {1..5}; do
-        curl -s "${BASE_URL}/data" --max-time ${TIMEOUT} &> /dev/null &
+
+    local pids=() failed=0 pid
+    for _ in {1..5}; do
+        curl -sf -o /dev/null --max-time "$TIMEOUT" "${BASE_URL}/data" &
+        pids+=($!)
     done
-    
-    wait
-    
-    # Проверяем что сервер все еще отвечает
-    if http_request "${BASE_URL}/data" &> /dev/null; then
-        log_success "Server handles concurrent requests"
-        return 0
+    for pid in "${pids[@]}"; do
+        wait "$pid" || failed=$((failed + 1))
+    done
+
+    if [ "$failed" -eq 0 ]; then
+        log_success "All 5 concurrent requests succeeded"
     else
-        log_error "Server failed after concurrent requests"
-        return 1
+        log_error "$failed of 5 concurrent requests failed"
     fi
 }
 
 test_websocket_availability() {
     run_test "WebSocket port availability"
-    
-    if command -v nc &> /dev/null; then
-        if nc -z -w2 ${ESP32_IP} 81; then
-            log_success "WebSocket port 81 is open"
-            return 0
-        else
-            log_warning "WebSocket port 81 is not accessible"
-            return 0  # Не критично для HTTP API
-        fi
+
+    local host=${ESP32_IP%%:*}
+    if ! command -v nc &> /dev/null; then
+        log_warning "netcat not available, skipping WebSocket test"
+    elif nc -z -w2 "$host" 81; then
+        log_success "WebSocket port 81 is open"
     else
-        log_info "netcat not available, skipping WebSocket test"
+        log_warning "WebSocket port 81 is not accessible (mock server has none)"
     fi
 }
 
@@ -353,6 +313,8 @@ test_websocket_availability() {
 # ═══════════════════════════════════════════════════════════════
 
 main() {
+    BASE_URL="http://${ESP32_IP}"
+
     echo ""
     echo "═══════════════════════════════════════════════════════════"
     echo "  ESP32 Weather Station API Tests"
@@ -361,44 +323,43 @@ main() {
     echo "Target: ${BASE_URL}"
     echo "Timeout: ${TIMEOUT}s"
     echo ""
-    
+
     # Проверка зависимостей
-    if ! command -v curl &> /dev/null; then
-        log_error "curl is not installed"
-        exit 1
-    fi
-    
-    if ! command -v python3 &> /dev/null; then
-        log_warning "python3 not found - JSON validation will be limited"
-    fi
-    
+    local tool
+    for tool in curl python3; do
+        if ! command -v "$tool" &> /dev/null; then
+            echo -e "${RED}[✗]${NC} $tool is not installed"
+            exit 1
+        fi
+    done
+
     # Запуск тестов
     test_connectivity || exit 1
-    
+
     echo ""
     echo "─────────────────────────────────────────────────────────"
     echo " HTTP Endpoints"
     echo "─────────────────────────────────────────────────────────"
     echo ""
-    
+
     test_root_endpoint
     test_data_endpoint
     test_stats_endpoint
     test_history_endpoint
     test_reset_endpoint
     test_404_handling
-    
+
     echo ""
     echo "─────────────────────────────────────────────────────────"
     echo " Performance & Reliability"
     echo "─────────────────────────────────────────────────────────"
     echo ""
-    
+
     test_cors_headers
     test_response_time
     test_concurrent_requests
     test_websocket_availability
-    
+
     # Итоговая статистика
     echo ""
     echo "═══════════════════════════════════════════════════════════"
@@ -406,10 +367,10 @@ main() {
     echo "═══════════════════════════════════════════════════════════"
     echo ""
     echo "Total tests:  ${TESTS_TOTAL}"
-    echo -e "${GREEN}Passed:${NC}       ${TESTS_PASSED}"
-    echo -e "${RED}Failed:${NC}       ${TESTS_FAILED}"
+    echo -e "${GREEN}Passed checks:${NC} ${TESTS_PASSED}"
+    echo -e "${RED}Failed checks:${NC} ${TESTS_FAILED}"
     echo ""
-    
+
     if [ $TESTS_FAILED -eq 0 ]; then
         echo -e "${GREEN}✓ All tests passed!${NC}"
         exit 0
@@ -424,7 +385,6 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         -h|--host)
             ESP32_IP="$2"
-            BASE_URL="http://${ESP32_IP}"
             shift 2
             ;;
         -v|--verbose)
@@ -439,10 +399,10 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [options]"
             echo ""
             echo "Options:"
-            echo "  -h, --host IP       ESP32 IP address (default: 192.168.1.100)"
-            echo "  -v, --verbose       Verbose output"
-            echo "  -t, --timeout SEC   Request timeout in seconds (default: 5)"
-            echo "  --help              Show this help"
+            echo "  -h, --host HOST[:PORT]  ESP32 address (default: \$ESP32_IP or 192.168.1.100)"
+            echo "  -v, --verbose           Verbose output"
+            echo "  -t, --timeout SEC       Request timeout in seconds (default: 5)"
+            echo "  --help                  Show this help"
             echo ""
             exit 0
             ;;

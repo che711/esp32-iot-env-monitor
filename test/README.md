@@ -40,15 +40,14 @@
 
 ### Требования
 
-- Python 3.8+
-- Node.js 16+ (для Playwright)
+- Python 3.10+
 - curl (для bash тестов)
-- ESP32 устройство в локальной сети
+- ESP32 устройство в локальной сети — или `--mock` (см. ниже), тогда плата не нужна
 
 ### Шаг 1: Установка Python зависимостей
 
 ```bash
-cd tests
+cd test
 pip install -r requirements.txt
 ```
 
@@ -86,28 +85,42 @@ HEADLESS=true
 # Установите IP вашего ESP32
 export ESP32_IP=192.168.1.100
 
-# Запустите все тесты
-cd tests
+# Запустите все тесты (ui/, api/, web/)
+cd test
 pytest -v
+```
+
+> ⚠️ `TestResetEndpoint` и `test_api.sh` вызывают `/reset` — min/max на плате
+> сбрасываются. Чтобы их пропустить: `pytest -k "not TestResetEndpoint"`.
+
+### Без платы (`--mock`)
+
+Те же тесты `api/` и `web/` можно прогнать против `mock_server.py` — он отдаёт
+страницу из `src/html_pages.h` и JSON в формате прошивки (соответствие полей
+проверяет `ui/test_mock_contract.py`). Так они и запускаются в CI.
+
+```bash
+cd test
+pytest --mock          # WebSocket-тесты (device_only) будут пропущены
 ```
 
 ### Только API тесты
 
 ```bash
 # Bash тесты (быстро)
-cd tests/api
+cd test/api
 chmod +x test_api.sh
 ./test_api.sh --host 192.168.1.100
 
 # Python тесты (детально)
-cd tests
+cd test
 pytest api/test_api.py -v
 ```
 
 ### Только Web тесты
 
 ```bash
-cd tests
+cd test
 pytest web/test_web_ui.py -v
 ```
 
@@ -122,7 +135,7 @@ pytest web/test_web_ui.py -v
 **Запуск:**
 
 ```bash
-cd tests/api
+cd test/api
 ./test_api.sh --host 192.168.1.100
 ```
 
@@ -196,7 +209,7 @@ Failed:       0
 **Запуск всех API тестов:**
 
 ```bash
-cd tests
+cd test
 pytest api/test_api.py -v
 ```
 
@@ -254,10 +267,10 @@ pytest api/test_api.py::TestDataEndpoint::test_temperature_range -v
 **Пример вывода:**
 
 ```
-tests/api/test_api.py::TestRootEndpoint::test_root_returns_html PASSED
-tests/api/test_api.py::TestDataEndpoint::test_data_endpoint_accessible PASSED
-tests/api/test_api.py::TestDataEndpoint::test_temperature_range PASSED
-tests/api/test_api.py::TestStatsEndpoint::test_battery_fields PASSED
+test/api/test_api.py::TestRootEndpoint::test_root_returns_html PASSED
+test/api/test_api.py::TestDataEndpoint::test_data_endpoint_accessible PASSED
+test/api/test_api.py::TestDataEndpoint::test_temperature_range PASSED
+test/api/test_api.py::TestStatsEndpoint::test_battery_fields PASSED
 ...
 
 ==================== 45 passed in 12.34s ====================
@@ -282,7 +295,7 @@ End-to-end тестирование веб-интерфейса с Playwright.
 **Headless режим (по умолчанию):**
 
 ```bash
-cd tests
+cd test
 pytest web/test_web_ui.py -v
 ```
 
@@ -304,18 +317,15 @@ pytest web/test_web_ui.py -v --headed --slowmo=100
 
 #### Page Load
 - ✅ Страница загружается
-- ✅ Правильный title
+- ✅ Правильный title (`ENV Station`)
 - ✅ Нет JavaScript ошибок
-- ✅ Адаптивность (Desktop/Tablet/Mobile)
+- ✅ Адаптивность (Desktop/Tablet/Mobile) — без горизонтального скролла
 
 #### UI Elements
-- ✅ Header виден
-- ✅ Temperature card
-- ✅ Humidity card
-- ✅ Dew point card
-- ✅ Heat index card
-- ✅ System & Control card
-- ✅ Графики (4 canvas элемента)
+- ✅ Header виден, бейдж версии прошивки и времени сборки
+- ✅ Карточки Temperature / Humidity / Dew point / Heat index
+- ✅ System & control card
+- ✅ Графики (History + 4 sparkline)
 - ✅ Кнопки управления
 
 #### Data Display
@@ -326,24 +336,25 @@ pytest web/test_web_ui.py -v --headed --slowmo=100
 - ✅ Системная статистика
 - ✅ WiFi информация
 
-#### Real-time Updates
+#### Real-time Updates (ждут реальные интервалы: данные — 10 с, история — 15 с)
 - ✅ Автоматическое обновление данных
 - ✅ Status badge обновляется
 - ✅ Графики обновляются
 
 #### Interactions
 - ✅ Переключение °C/°F
-- ✅ Reset button
+- ✅ Reset: отмена в диалоге не отправляет запрос на плату
 - ✅ Export CSV
 - ✅ Export JSON
 - ✅ Serial monitor clear
+- ✅ Сворачивание карточек
 
-#### WebSocket
+#### WebSocket (только на плате, `device_only`)
 - ✅ WebSocket подключается
-- ✅ Логи появляются в консоли
+- ✅ Приветствие платы появляется в Serial monitor
 
 #### Accessibility
-- ✅ Кнопки имеют текст
+- ✅ У каждой кнопки есть доступное имя (текст, `aria-label` или `title`)
 - ✅ Изображения имеют alt
 
 #### Performance
@@ -353,11 +364,11 @@ pytest web/test_web_ui.py -v --headed --slowmo=100
 ### Пример вывода
 
 ```
-tests/web/test_web_ui.py::TestPageLoad::test_page_loads_successfully PASSED
-tests/web/test_web_ui.py::TestPageLoad::test_page_title PASSED
-tests/web/test_web_ui.py::TestUIElements::test_temperature_card_visible PASSED
-tests/web/test_web_ui.py::TestDataDisplay::test_temperature_displays PASSED
-tests/web/test_web_ui.py::TestInteractions::test_temperature_unit_toggle PASSED
+test/web/test_web_ui.py::TestPageLoad::test_page_loads_successfully PASSED
+test/web/test_web_ui.py::TestPageLoad::test_page_title PASSED
+test/web/test_web_ui.py::TestUIElements::test_temperature_card_visible PASSED
+test/web/test_web_ui.py::TestDataDisplay::test_temperature_displays PASSED
+test/web/test_web_ui.py::TestInteractions::test_temperature_unit_toggle PASSED
 ...
 
 ==================== 35 passed in 45.67s ====================
@@ -381,22 +392,45 @@ pytest web/test_web_ui.py --screenshot=on --video=retain-on-failure
 
 ### Workflow файл
 
-`.github/workflows/ci.yml` содержит:
+`.github/workflows/ci.yml` запускается при push в любую ветку, на теги `v*`,
+на pull request из форков и вручную (PR из этого же репозитория уже проверен
+push-запуском своей ветки, поэтому второй раз не гоняется). Jobs:
 
-1. **Build Job** - компиляция прошивки
-2. **Static Analysis** - cppcheck, форматирование
-3. **Unit Tests** - native тесты (если есть)
-4. **Docs Check** - проверка документации
-5. **Security Scan** - Trivy scanner
-6. **Release** - создание релиза для тегов
+1. **Build firmware + static analysis** — `pio run` (размер RAM/Flash — в summary
+   запуска) и `pio check` (cppcheck, падает на дефектах medium/high)
+2. **Unit tests (native)** — `pio test -e native`: юнит-тесты
+   `WeatherCalculations` на хосте, без платы (`test/native/`)
+3. **UI + API tests (mock device)** — без платы, против `mock_server.py`:
+   `pytest ui api web --mock` и `test_api.sh`
+4. **GitHub release** — только для тегов `v*`: проверяет, что тег совпадает с
+   `FIRMWARE_VERSION` в `src/config.h`, и прикладывает прошивку к релизу
+
+### Тесты без платы (локально)
+
+```bash
+# Юнит-тесты расчётов
+pio test -e native
+
+# UI- и API-тесты против mock-сервера
+cd test
+pip install -r requirements-ci.txt
+python -m playwright install chromium
+pytest --mock
+
+# Mock-сервер отдельно — править UI без перепрошивки
+python test/mock_server.py --port 8080   # → http://127.0.0.1:8080
+```
 
 ### Использование
 
 **Автоматический запуск:**
 
 ```bash
-# При push в main/develop
-git push origin main
+# При push в любую ветку
+git push origin my-branch
+
+# Релиз: тег должен совпадать с FIRMWARE_VERSION в src/config.h
+git tag v3.1 && git push origin v3.1
 
 # При создании PR
 gh pr create --base main --head feature-branch
@@ -426,9 +460,9 @@ gh run view <run-id> --log
 
 ### Artifacts
 
-После успешной сборки:
-- `firmware-esp32c3` - скомпилированная прошивка
-- Доступна 7 дней
+После каждого запуска (хранятся 7 дней):
+- `firmware-esp32c3` — `firmware.bin`, `bootloader.bin`, `partitions.bin`
+- `test-report` — HTML-отчёт pytest (в том числе при падении)
 
 **Скачать:**
 
@@ -565,19 +599,13 @@ pre-commit install
 
 ### Локальная симуляция CI
 
+Те же проверки, что и в CI (из корня репозитория):
+
 ```bash
-# Запустить те же проверки что и в CI
-make ci-local
-```
-
-Или создайте `Makefile`:
-
-```makefile
-.PHONY: ci-local
-ci-local:
-	pytest tests/ -v
-	pylint src/
-	black --check src/
+pio run                                        # сборка прошивки
+pio check --skip-packages --fail-on-defect medium --fail-on-defect high
+pio test -e native                             # юнит-тесты
+(cd test && pytest --mock)                     # UI + API против mock-сервера
 ```
 
 ---
@@ -612,7 +640,7 @@ playwright --version
 ```bash
 # Увеличьте timeout
 export TEST_TIMEOUT=10
-pytest tests/
+pytest
 
 # Или в коде
 pytest --timeout=30
@@ -633,18 +661,27 @@ kill -9 <PID>
 ## Структура тестов
 
 ```
-tests/
+test/
 ├── .env.example              # Пример конфигурации
 ├── pytest.ini                # Конфигурация pytest
-├── conftest.py               # Shared fixtures
-├── requirements.txt          # Python зависимости
+├── conftest.py               # Shared fixtures, опция --mock
+├── mock_server.py            # Mock ESP32 (страница + JSON как у прошивки)
+├── requirements.txt          # Python зависимости (полный набор)
+├── requirements-ci.txt       # Минимальный набор для CI
 │
 ├── api/
-│   ├── test_api.sh          # Bash/curl тесты
-│   └── test_api.py          # Python/pytest тесты
+│   ├── test_api.sh           # Bash/curl smoke-тесты
+│   └── test_api.py           # Python/pytest тесты
 │
-└── web/
-    └── test_web_ui.py       # Playwright E2E тесты
+├── web/
+│   └── test_web_ui.py        # Playwright E2E тесты
+│
+├── ui/                       # Только против mock-сервера
+│   ├── test_dashboard.py     # Вёрстка, сворачивание, бейдж версии
+│   └── test_mock_contract.py # Поля mock == поля в src/web_server.cpp
+│
+└── native/
+    └── test_calculations/    # Unity-тесты на хосте: pio test -e native
 ```
 
 ---

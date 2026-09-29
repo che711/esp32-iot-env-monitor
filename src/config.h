@@ -11,6 +11,10 @@
 // и бейдж в шапке веб-интерфейса (приходит через /stats).
 inline constexpr const char* FIRMWARE_VERSION = "3.1";
 
+// Дата и время сборки ("YYYY-MM-DD HH:MM", локальное время машины сборки).
+// Определено в build_info.cpp, обновляется при каждой сборке.
+extern const char FIRMWARE_BUILD_TIME[];
+
 // ============================================
 // WiFi Configuration
 // ============================================
